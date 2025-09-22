@@ -11,7 +11,7 @@ import Contact from './pages/Contact.js';
 import Admin from './pages/Admin.js';
 import { ThemeProvider } from '@mui/material/styles';
 import theme from './theme.js';
-import { default as jwtDecode } from 'jwt-decode';
+import jwt_decode from 'jwt-decode';
 
 axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'https://backendlogins.onrender.com';
 
@@ -25,7 +25,7 @@ function AppContent() {
   useEffect(() => {
     if (token) {
       try {
-        const decoded = jwtDecode(token);
+        const decoded = jwt_decode(token);
         setUser (decoded);
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         // Fetch profile for theme/pic
