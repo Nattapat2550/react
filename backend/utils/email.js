@@ -1,7 +1,7 @@
 const nodemailer = require('nodemailer');
 const generateCode = require('./generateCode');
 
-const transporter = nodemailer.createTransporter({
+const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: process.env.SMTP_PORT,
   secure: false,
