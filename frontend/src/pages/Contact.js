@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
-import './styles/home.css';  // Reuse for body text and container
+import '../styles/home.css';  // Reuse for body text and container
 
 const Contact = () => {
   return (

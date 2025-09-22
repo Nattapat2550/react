@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import './styles/forms.css';  // Import CSS
-import './styles/utils.css';  // For alerts
+import '../styles/forms.css';  // Import CSS
+import '../styles/utils.css';  // For alerts
 import {
   TextField, Button, Alert, Box, Typography
 } from '@mui/material';

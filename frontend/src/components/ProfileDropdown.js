@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './styles/forms.css';  // For dialogs and inputs
-import './styles/navbar.css';  // For dropdown items
-import './styles/utils.css';  // For file upload
+import '../styles/forms.css';  // For dialogs and inputs
+import '../styles/navbar.css';  // For dropdown items
+import '../styles/utils.css';  // For file upload
 import {
   MenuItem, Divider, Dialog, TextField, Button, Box, Typography, Avatar, IconButton
 } from '@mui/material';

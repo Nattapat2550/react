@@ -1,8 +1,8 @@
 import React from 'react';
 import { Box, Typography, Button } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import './styles/home.css';  // Reuse for general layout
-import './styles/forms.css';  // For buttons
+import '../styles/home.css';  // Reuse for general layout
+import '../styles/forms.css';  // For buttons
 
 const Index = ({ onRegister, onLogin }) => {  // onLogin passed from App
   const navigate = useNavigate();

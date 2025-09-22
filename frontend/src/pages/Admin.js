@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Table, TableBody, TableCell, TableHead, TableRow, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import axios from 'axios';
-import './styles/admin.css';  // Import main admin CSS
-import './styles/forms.css';  // For dialogs and inputs
-import './styles/utils.css';  // For buttons and alerts
+import '../styles/admin.css';  // Import main admin CSS
+import '../styles/forms.css';  // For dialogs and inputs
+import '../styles/utils.css';  // For buttons and alerts
 
 const Admin = ({ user }) => {
   const [users, setUsers] = useState([]);

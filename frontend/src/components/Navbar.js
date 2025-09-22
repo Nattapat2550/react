@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';  // Add if not present
-import './styles/navbar.css';  // Import CSS
-import './styles/utils.css';   // For shared utilities
+import '../styles/navbar.css';  // Import CSS
+import '../styles/utils.css';   // For shared utilities
 import {
   AppBar, Toolbar, Typography, Button, IconButton, Menu, MenuItem, Avatar, Switch
 } from '@mui/material';
 import { AccountCircle, Settings, Logout } from '@mui/icons-material';
-import ProfileDropdown from './ProfileDropdown';
+import ProfileDropdown from '../ProfileDropdown';
 
 const Navbar = ({ user, onLogout, themeMode, onThemeChange }) => {
   const [anchorEl, setAnchorEl] = useState(null);
