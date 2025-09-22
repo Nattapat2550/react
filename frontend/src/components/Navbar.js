@@ -6,7 +6,7 @@ import {
   AppBar, Toolbar, Typography, Button, IconButton, Menu, MenuItem, Avatar, Switch
 } from '@mui/material';
 import { AccountCircle, Settings, Logout } from '@mui/icons-material';
-import ProfileDropdown from './ProfileDropdown';
+import ProfileDropdown from './ProfileDropdown.js';
 
 const Navbar = ({ user, onLogout, themeMode, onThemeChange }) => {
   const [anchorEl, setAnchorEl] = useState(null);
