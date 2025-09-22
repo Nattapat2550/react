@@ -11,7 +11,7 @@ import Contact from './pages/Contact.js';
 import Admin from './pages/Admin.js';
 import { ThemeProvider } from '@mui/material/styles';
 import theme from './theme.js';
-import jwtDecode from 'jwt-decode';
+import { default as jwtDecode } from 'jwt-decode';
 
 axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'https://backendlogins.onrender.com';
 
