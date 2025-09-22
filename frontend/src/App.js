@@ -10,7 +10,7 @@ import About from './pages/About';
 import Contact from './pages/Contact';
 import Admin from './pages/Admin';
 import { ThemeProvider } from '@mui/material/styles';
-import theme from './theme';
+import theme from './theme.js';
 import jwtDecode from 'jwt-decode';
 
 axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'https://backendlogins.onrender.com';
