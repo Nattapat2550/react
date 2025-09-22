@@ -1,0 +1,39 @@
+/* Shared Utilities */
+.custom-alert {
+  border-radius: var(--border-radius) !important;
+  margin: 15px 0 !important;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--secondary-color);
+  border-radius: 50%;
+  border-top-color: var(--primary-color);
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* File Upload Input */
+.file-input {
+  display: none;
+}
+
+.file-label {
+  cursor: pointer;
+  color: var(--primary-color);
+  padding: 8px 16px;
+  border: 2px dashed var(--border-color);
+  border-radius: var(--border-radius);
+  transition: var(--transition);
+  display: inline-block;
+}
+
+.file-label:hover {
+  border-color: var(--primary-color);
+  background-color: var(--secondary-color);
+}

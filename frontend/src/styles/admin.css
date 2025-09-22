@@ -1,0 +1,104 @@
+/* Admin Panel */
+.admin-container {
+  margin-top: 80px; /* Navbar space */
+  padding: 40px 20px;
+}
+
+.admin-title {
+  color: var(--text-color);
+  margin-bottom: 30px;
+}
+
+.admin-section {
+  background-color: var(--secondary-color);
+  padding: 25px;
+  border-radius: var(--border-radius);
+  margin-bottom: 30px;
+  box-shadow: var(--shadow);
+  transition: var(--transition);
+}
+
+.admin-section:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Table */
+.custom-table {
+  background-color: var(--bg-color);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.custom-table .MuiTableHead-root {
+  background-color: var(--primary-color);
+}
+
+.custom-table .MuiTableHead-root th {
+  color: white !important;
+  font-weight: 600;
+  padding: 15px !important;
+}
+
+.custom-table .MuiTableRow-root:nth-child(even) {
+  background-color: var(--secondary-color);
+}
+
+.custom-table .MuiTableRow-root:hover {
+  background-color: rgba(25, 118, 210, 0.1) !important;
+}
+
+.custom-table td {
+  padding: 12px !important;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-color);
+}
+
+.custom-table img {
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* Admin Buttons */
+.admin-button {
+  padding: 6px 12px !important;
+  margin: 0 5px !important;
+  border-radius: 4px !important;
+  text-transform: none !important;
+  font-size: 0.8rem !important;
+  transition: var(--transition);
+}
+
+.admin-button:hover {
+  transform: translateY(-1px);
+}
+
+/* Mobile Responsiveness for Admin Table */
+@media (max-width: 768px) {
+  .custom-table {
+    font-size: 0.8rem;
+  }
+  
+  .custom-table .MuiTableCell-root {
+    padding: 8px !important;
+  }
+  
+  .admin-button {
+    padding: 4px 8px !important;
+    font-size: 0.7rem !important;
+    margin: 2px !important;
+  }
+  
+  .admin-section {
+    padding: 15px;
+  }
+}
+
+/* Scrollable Table on Small Screens */
+@media (max-width: 600px) {
+  .custom-table {
+    overflow-x: auto;
+    display: block;
+    white-space: nowrap;
+  }
+}

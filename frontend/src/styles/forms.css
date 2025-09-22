@@ -1,0 +1,102 @@
+/* Forms (Register, Login, Dialogs) */
+.form-container {
+  max-width: 400px;
+  margin: 80px auto 0; /* Space for fixed navbar */
+  padding: 30px;
+  background-color: var(--secondary-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  transition: var(--transition);
+}
+
+.form-title {
+  text-align: center;
+  margin-bottom: 20px;
+  color: var(--text-color);
+}
+
+.custom-input {
+  margin-bottom: 15px !important;
+  background-color: var(--bg-color) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.custom-input .MuiInputBase-root {
+  border-radius: var(--border-radius) !important;
+}
+
+.custom-input.Mui-focused {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2) !important;
+}
+
+.custom-password-input {
+  position: relative;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-color);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.password-toggle:hover {
+  color: var(--primary-color);
+}
+
+.custom-button {
+  width: 100% !important;
+  margin-top: 10px !important;
+  padding: 12px !important;
+  border-radius: var(--border-radius) !important;
+  font-weight: 500 !important;
+  transition: var(--transition);
+  text-transform: none !important;
+}
+
+.custom-button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow) !important;
+}
+
+.custom-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-alert {
+  margin: 10px 0 !important;
+  border-radius: var(--border-radius) !important;
+  background-color: rgba(211, 47, 47, 0.1) !important;
+  color: var(--error-color) !important;
+}
+
+.success-alert {
+  background-color: rgba(56, 142, 60, 0.1) !important;
+  color: var(--success-color) !important;
+}
+
+/* Checkbox */
+.custom-checkbox .MuiFormControlLabel-label {
+  color: var(--text-color);
+  font-size: 0.9rem;
+}
+
+/* Dialogs */
+.custom-dialog .MuiDialog-paper {
+  border-radius: var(--border-radius) !important;
+  background-color: var(--bg-color) !important;
+  color: var(--text-color) !important;
+}
+
+.custom-dialog .MuiDialogContent-root {
+  padding: 20px !important;
+}
+
+.custom-dialog .MuiTextField-root {
+  margin: 10px 0 !important;
+}
