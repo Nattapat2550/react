@@ -58,3 +58,107 @@ async function guard() {
   }
   // admin: allow all
 }
+/* ==== Dropdowns (รองรับทั้งแบบเก่าและแบบ data-* ใหม่) ==== */
+(function initDropdowns(){
+  // 1) โหมดเก่า: ปุ่มที่มี id=menuBtn → toggle เมนู id=menu (class 'open')
+  function legacyInit() {
+    const btn  = document.getElementById('menuBtn');
+    const menu = document.getElementById('menu');
+    if (!btn || !menu) return;
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      menu.classList.toggle('open');
+      // ARIA
+      const isOpen = menu.classList.contains('open');
+      btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      menu.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+    });
+    document.addEventListener('click', (e) => {
+      if (!menu.classList.contains('open')) return;
+      const inside = menu.contains(e.target) || btn.contains(e.target);
+      if (!inside) {
+        menu.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+        menu.setAttribute('aria-hidden', 'true');
+      }
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && menu.classList.contains('open')) {
+        menu.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+        menu.setAttribute('aria-hidden', 'true');
+      }
+    });
+  }
+
+  // 2) โหมดใหม่ (ยืดหยุ่น): ปุ่มใดๆที่มี data-dd-toggle="menuId" → toggle element id="menuId"
+  function dataAttrInit() {
+    // Event delegation: ไม่สนใจลำดับ render (React/DOM เดิมก็ได้)
+    document.addEventListener('click', (e) => {
+      const t = e.target.closest('[data-dd-toggle]');
+      if (!t) return;
+      const targetId = t.getAttribute('data-dd-toggle') || t.getAttribute('data-dd-target');
+      if (!targetId) return;
+      const menu = document.getElementById(targetId);
+      if (!menu) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const willOpen = menu.classList.contains('hidden') || !menu.classList.contains('open');
+      // ปิด dropdown อื่นก่อน (ถ้าอยาก)
+      document.querySelectorAll('[data-dd-menu].open, [data-dd-menu]:not(.hidden)').forEach(el=>{
+        if (el !== menu) {
+          el.classList.add('hidden');
+          el.classList.remove('open');
+          const btn = document.querySelector(`[data-dd-toggle="${el.id}"],[data-dd-target="${el.id}"]`);
+          if (btn) btn.setAttribute('aria-expanded','false');
+        }
+      });
+
+      // toggle ของเรา
+      if (willOpen) {
+        menu.classList.remove('hidden');
+        menu.classList.add('open');
+        t.setAttribute('aria-expanded','true');
+        menu.setAttribute('aria-hidden','false');
+      } else {
+        menu.classList.add('hidden');
+        menu.classList.remove('open');
+        t.setAttribute('aria-expanded','false');
+        menu.setAttribute('aria-hidden','true');
+      }
+    });
+
+    // click นอก → ปิด
+    document.addEventListener('click', (e) => {
+      document.querySelectorAll('[data-dd-menu].open, [data-dd-menu]:not(.hidden)').forEach(menu=>{
+        const btn = document.querySelector(`[data-dd-toggle="${menu.id}"],[data-dd-target="${menu.id}"]`);
+        const inside = menu.contains(e.target) || (btn && btn.contains(e.target));
+        if (!inside) {
+          menu.classList.add('hidden');
+          menu.classList.remove('open');
+          menu.setAttribute('aria-hidden','true');
+          if (btn) btn.setAttribute('aria-expanded','false');
+        }
+      });
+    });
+
+    // Esc → ปิดทั้งหมด
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      document.querySelectorAll('[data-dd-menu]').forEach(menu=>{
+        if (menu.classList.contains('open') || !menu.classList.contains('hidden')) {
+          menu.classList.add('hidden');
+          menu.classList.remove('open');
+          menu.setAttribute('aria-hidden','true');
+          const btn = document.querySelector(`[data-dd-toggle="${menu.id}"],[data-dd-target="${menu.id}"]`);
+          if (btn) btn.setAttribute('aria-expanded','false');
+        }
+      });
+    });
+  }
+
+  legacyInit();
+  dataAttrInit();
+})();

@@ -292,3 +292,12 @@ button, .btn, .nav .links a, .brand, h1, h2, h3, h4, h5, th{ white-space:nowrap;
 @media (prefers-reduced-motion: reduce){
   *{ animation:none !important; transition:none !important; }
 }
+.hidden { display: none; }
+
+/* สำหรับสไตล์เก่า (class 'open') */
+#menu { display: none; position: absolute; z-index: 50; }
+#menu.open { display: block; }
+
+/* สำหรับ data-dd-menu */
+[data-dd-menu] { position: absolute; z-index: 50; display: none; }
+[data-dd-menu].open { display: block; }
