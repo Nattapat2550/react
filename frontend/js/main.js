@@ -1,92 +1,83 @@
+// ===== frontend/js/main.js =====
 const API_BASE_URL = 'https://react1-k4e2.onrender.com';
+
+/* ==== React-friendly API helper (keep same signature) ==== */
+window.api = async function api(path, { method='GET', body, headers } = {}) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json', ...(headers || {}) },
+    credentials: 'include'   // สำคัญ: ให้ส่ง cookie ไป-กลับกับ backend
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API_BASE_URL + path, opts);
+  if (!res.ok) {
+    // ส่ง error ชัดๆ ให้ผู้เรียกจัดการ (เช่น guard)
+    let err = 'Request failed';
+    try { const j = await res.json(); err = j.error || JSON.stringify(j); } catch {}
+    const e = new Error(err);
+    e.status = res.status;
+    throw e;
+  }
+  const ct = res.headers.get('content-type') || '';
+  return ct.includes('application/json') ? res.json() : res.text();
+};
 
 /* ==== Theme toggle ==== */
 document.addEventListener('DOMContentLoaded', () => {
   const themeToggle = document.getElementById('themeToggle');
+  if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');
   if (themeToggle) {
     themeToggle.addEventListener('click', () => {
       document.body.classList.toggle('dark');
       localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
     });
   }
-  if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');
+
+  // เรียก guard ทุกหน้า
+  guard();
 });
 
-/* ==== API helper ==== */
-async function api(path, { method='GET', body } = {}) {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    credentials: 'include',
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
-    body: body ? JSON.stringify(body) : undefined
-  });
-  if (!res.ok) {
-    let msg = 'Request failed';
-    try { const j = await res.json(); msg = j.error || msg; } catch {}
-    throw new Error(msg);
+/* ==== Route Guard ==== */
+async function getMeSafe() {
+  try {
+    return await api('/api/users/me');
+  } catch (e) {
+    if (e && e.status === 401) return null; // ยังไม่ได้ล็อกอิน
+    throw e; // error อื่นให้เด้งดังเดิม (จะเห็นใน console)
   }
-  return res.status === 204 ? null : res.json();
 }
-window.api = api;
-window.API_BASE_URL = API_BASE_URL;
 
-/* ==== PAGE ACCESS CONTROL ==== */
-(function guard() {
-  // หน้าที่อนุญาตเมื่อ "ยังไม่ล็อกอิน/ไม่มี token"
-  const LOGGED_OUT_ALLOWED = new Set([
-    '', 'index.html', 'about.html', 'contact.html', 'register.html', 'login.html',
-    'check.html', 'form.html', 'reset.html'
-  ]);
+async function guard() {
+  // ไฟล์หน้าปัจจุบัน
+  const page = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
 
-  // หน้าที่อนุญาตให้ "user"
-  const USER_ALLOWED  = new Set(['home.html', 'about.html', 'contact.html', 'settings.html']);
+  // เพจ public (ไม่ต้องล็อกอิน)
+  const PUBLIC = new Set(['', 'index.html', 'about.html', 'contact.html', 'login.html', 'register.html', 'reset.html', 'check.html']);
+  // เพจที่อนุญาตสำหรับ user
+  const USER_ONLY = new Set(['home.html', 'settings.html']);
+  // เพจ admin
+  const ADMIN_ONLY = new Set(['admin.html', 'form.html']);
 
-  // หน้าที่อนุญาตให้ "admin"
-  const ADMIN_ALLOWED = new Set(['admin.html', 'about.html', 'contact.html']);
+  // หน้า public ไม่ต้องตรวจ
+  if (PUBLIC.has(page)) return;
 
-  const page = (location.pathname.split('/').pop() || '').toLowerCase();
+  const me = await getMeSafe();
 
-  // เช็คสถานะผู้ใช้จาก token (cookie)
-  api('/api/users/me')
-    .then(me => {
-      const role = (me.role || 'user').toLowerCase();
-
-      // ใส่ชื่อ/รูป ถ้ามี element เหล่านี้ (optional-safe)
-      const uname = document.getElementById('uname');
-      const avatar = document.getElementById('avatar');
-      if (uname) uname.textContent = me.username || me.email;
-      if (avatar && me.profile_picture_url) avatar.src = me.profile_picture_url;
-
-      if (role === 'admin') {
-        if (!ADMIN_ALLOWED.has(page)) location.replace('admin.html');
-      } else {
-        if (!USER_ALLOWED.has(page)) location.replace('home.html');
-      }
-    })
-    .catch(() => {
-      // ไม่มี token => เข้าได้เฉพาะ LOGGED_OUT_ALLOWED
-      if (!LOGGED_OUT_ALLOWED.has(page)) location.replace('index.html');
-    });
-})();
-
-/* ==== Optional handlers (เช็ก element ก่อนเสมอ) ==== */
-document.addEventListener('DOMContentLoaded', () => {
-  // Dropdown toggle แบบคลิก (มีเฉพาะบางหน้า)
-  const menu = document.getElementById('userMenu');
-  if (menu) {
-    document.addEventListener('click', (e) => {
-      const inside = menu.contains(e.target);
-      if (inside) menu.classList.toggle('open');
-      else menu.classList.remove('open');
-    });
+  // ถ้าไม่ล็อกอิน → อนุญาตเฉพาะหน้า public เท่านั้น
+  if (!me) {
+    // ถ้าเผลอเข้าหน้าอื่น → เด้งกลับ index
+    location.replace('index.html');
+    return;
   }
 
-  // Logout (มีเฉพาะบางหน้า)
-  const logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', async () => {
-      try { await api('/api/auth/logout', { method:'POST' }); } catch {}
-      location.replace('index.html');
-    });
+  // ล็อกอินแล้วแต่ role เป็น user
+  if (me.role !== 'admin') {
+    // ถ้าไม่ใช่หน้า public และไม่ใช่หน้า user-only → กลับ home
+    if (!(USER_ONLY.has(page) || PUBLIC.has(page))) {
+      location.replace('home.html');
+      return;
+    }
+  } else {
+    // admin: ผ่านได้ทุกหน้า (แต่ถ้าอยากบังคับไปหน้า admin เมื่อเปิดหน้าอื่น ก็เปลี่ยนเงื่อนไขตรงนี้ได้)
   }
-});
+}
