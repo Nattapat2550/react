@@ -1,22 +1,14 @@
-const form = document.getElementById('profileForm');
 const msg = document.getElementById('msg');
-
-(function init(){
-  const qs = new URLSearchParams(location.search);
-  const email = qs.get('email') || '';
-  document.getElementById('email').value = email;
-})();
-
-form.addEventListener('submit', async (e)=>{
+const urlEmail = new URLSearchParams(location.search).get('email');
+if (urlEmail) document.getElementById('email').value = urlEmail;
+document.getElementById('profileForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  msg.textContent = '';
-  const email    = document.getElementById('email').value.trim();
+  msg.textContent='';
+  const email = document.getElementById('email').value.trim();
   const username = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value;
   try {
     await api('/api/auth/complete-profile', { method:'POST', body:{ email, username, password }});
-    location.replace('home.html');
-  } catch (err) {
-    msg.textContent = err.message;
-  }
+    location.href = 'home.html';
+  } catch (err) { msg.textContent = err.message; }
 });

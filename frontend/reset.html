@@ -1,16 +1,41 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Reset Password</title>
-  <link rel="stylesheet" href="css/style.css"/>
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <meta charset="utf-8" />
+  <title>Password Reset</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link href="css/style.css" rel="stylesheet" />
 </head>
 <body>
-  <main class="container" id="app"></main>
+  <nav class="nav">
+    <div class="brand">MySite</div>
+    <div class="links"><a href="index.html">Home</a><button id="themeToggle">🌓</button></div>
+  </nav>
+  <main class="container">
+    <h2>Password Reset</h2>
+    <section id="requestBox">
+      <p>Enter your email to receive a reset link.</p>
+      <form id="requestForm">
+        <label>Email</label>
+        <input type="email" id="email" required />
+        <button class="btn" type="submit">Send Link</button>
+      </form>
+    </section>
+    <section id="resetBox" style="display:none;">
+      <p>Enter your new password.</p>
+      <form id="resetForm">
+        <label>New Password</label>
+        <input type="password" id="newPassword" minlength="8" required />
+        <button class="btn" type="submit">Set Password</button>
+      </form>
+    </section>
+    <p id="msg" class="muted"></p>
+  </main>
   <script src="js/main.js"></script>
   <script src="js/reset.js"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="js/react-shim.js"></script>
 </body>
 </html>

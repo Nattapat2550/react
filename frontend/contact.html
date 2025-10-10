@@ -1,19 +1,28 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta charset="utf-8" />
   <title>Contact</title>
-  <link rel="stylesheet" href="css/style.css"/>
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react@18/umd/react-dom.production.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link href="css/style.css" rel="stylesheet" />
 </head>
 <body>
-  <header class="topbar">
-    <button id="themeToggle" aria-label="Toggle theme">🌓</button>
-  </header>
-  <main class="container" id="app"></main>
+  <nav class="nav">
+    <div class="brand">MySite</div>
+    <div class="links">
+      <a href="index.html">Home</a>
+      <a href="about.html">About</a>
+      <button id="themeToggle">🌓</button>
+    </div>
+  </nav>
+  <main class="container">
+    <h1>Contact</h1>
+    <p>This is a public landing page. Email us any time.</p>
+  </main>
   <script src="js/main.js"></script>
-  <script src="js/index.js"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="js/react-shim.js"></script>
 </body>
 </html>
