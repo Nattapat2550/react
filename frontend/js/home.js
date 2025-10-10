@@ -1,119 +1,73 @@
-async function init() {
-  try {
-    const me = await api('/api/users/me');
-    const uname = document.getElementById('uname');
-    const avatar = document.getElementById('avatar');
-    if (uname) uname.textContent = me.username || me.email;
-    if (avatar && me.profile_picture_url) avatar.src = me.profile_picture_url;
+(function(){
+  if (!document.getElementById('app')) return;
 
-    const content = await api('/api/homepage');
-    const map = Object.fromEntries(content.map(c => [c.section_name, c.content]));
-    const wh = document.getElementById('welcome_header');
-    const mp = document.getElementById('main_paragraph');
-    if (wh) wh.textContent = map.welcome_header || `Welcome, ${me.username || me.email}`;
-    if (mp) mp.textContent = map.main_paragraph || 'This is your dashboard.';
-
-    const items = await api('/api/carousel');
-    buildCarousel(items);
-  } catch {
-    location.replace('index.html');
-    return;
+  function useAsync(fn, deps){
+    const [state, setState] = React.useState({ loading:true, error:null, data:null });
+    React.useEffect(()=>{
+      let alive = true;
+      (async ()=>{
+        try { const data = await fn(); if (alive) setState({ loading:false, error:null, data }); }
+        catch(err){ if (alive) setState({ loading:false, error:err, data:null }); }
+      })();
+      return ()=>{ alive=false; };
+    }, deps||[]);
+    return state;
   }
 
-  const logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', async () => {
-      try { await api('/api/auth/logout', { method:'POST' }); } catch {}
-      location.replace('index.html');
-    });
-  }
-}
-init();
-
-function buildCarousel(items) {
-  const track = document.getElementById('carousel-track');
-  const dotsBox = document.getElementById('carousel-indicators');
-  const prevBtn = document.getElementById('carousel-prev');
-  const nextBtn = document.getElementById('carousel-next');
-  const shell = document.getElementById('carousel');
-
-  if (!track || !dotsBox || !shell) return;
-
-  track.innerHTML = '';
-  dotsBox.innerHTML = '';
-
-  let slides = items;
-  if (!Array.isArray(items) || items.length === 0) {
-    slides = [{ title:'No slides yet', subtitle:'', description:'', image_dataurl:'images/user.png' }];
+  function Carousel({ items }){
+    const [idx, setIdx] = React.useState(0);
+    const n = items.length;
+    const go = (d)=> setIdx((idx+d+n)%n);
+    if (!n) return React.createElement('div', { className:'carousel' }, 'No slides yet');
+    const it = items[idx];
+    return React.createElement('div', { className:'carousel' },
+      React.createElement('div', { className:'carousel-slide' },
+        React.createElement('img', { src: it.image_dataurl || 'images/user.png', alt: it.title || 'Slide' }),
+        React.createElement('div', { className:'caption' },
+          React.createElement('h3', null, it.title || ''),
+          React.createElement('p', null, it.subtitle || ''),
+          React.createElement('p', null, it.description || '')
+        )
+      ),
+      React.createElement('div', { className:'carousel-controls' },
+        React.createElement('button', { className:'btn outline', onClick:()=>go(-1) }, 'Prev'),
+        React.createElement('span', { className:'muted' }, (idx+1) + ' / ' + n),
+        React.createElement('button', { className:'btn outline', onClick:()=>go(1) }, 'Next')
+      )
+    );
   }
 
-  // === สร้างสไลด์ ===
-  slides.forEach((it) => {
-    const slide = document.createElement('div');
-    slide.className = 'carousel-slide';
-    const img = document.createElement('img');
-    img.src = it.image_dataurl;
-    img.alt = it.title || 'Slide';
-    slide.appendChild(img);
-    track.appendChild(slide);
-  });
+  function HomePage(){
+    const meState = useAsync(()=>api('/api/users/me'), []);
+    if (meState.loading) return React.createElement('p', null, 'Loading...');
+    if (meState.error) { location.replace('index.html'); return null; }
+    const me = meState.data;
 
-  // === Indicators เป็น thumbnail วงกลม ===
-  slides.forEach((it, idx) => {
-    const btn = document.createElement('button');
-    const im = document.createElement('img');
-    im.src = it.image_dataurl;
-    im.alt = it.title || `Slide ${idx+1}`;
-    btn.appendChild(im);
-    if (idx === 0) btn.classList.add('active');
-    btn.addEventListener('click', () => goTo(idx));
-    dotsBox.appendChild(btn);
-  });
+    const hpState = useAsync(()=>api('/api/homepage'), []);
+    const slidesState = useAsync(()=>api('/api/carousel'), []);
+    const contentMap = (hpState.data||[]).reduce((a,c)=> (a[c.section_name]=c.content, a), {});
+    const slides = Array.isArray(slidesState.data) ? slidesState.data : [];
 
-  let index = 0;
-
-  function setCaption(i) {
-    const it = slides[i] || {};
-    const t = document.getElementById('cc-title');
-    const s = document.getElementById('cc-subtitle');
-    const d = document.getElementById('cc-desc');
-    if (t) t.textContent = it.title || '';
-    if (s) s.textContent = it.subtitle || '';
-    if (d) d.textContent = it.description || '';
+    return React.createElement('div', {},
+      React.createElement('div', { className:'profile' },
+        React.createElement('img', { id:'avatar', src: me.profile_picture_url || 'images/user.png', width:64, height:64 }),
+        React.createElement('h2', { id:'uname' }, me.username || me.email),
+        React.createElement('div', null, 
+          React.createElement('a', { className:'btn outline', href:'settings.html' }, 'Settings'),
+          React.createElement('button', { className:'btn', id:'logoutBtn', onClick: async ()=> { try{ await api('/api/auth/logout', { method:'POST' }); } catch{} location.replace('index.html'); } }, 'Logout')
+        )
+      ),
+      React.createElement('section', null,
+        React.createElement('h3', { id:'welcome_header' }, contentMap['welcome_header'] || `Welcome, ${me.username || me.email}`),
+        React.createElement('p', { id:'main_paragraph' }, contentMap['main_paragraph'] || 'This is your dashboard.')
+      ),
+      React.createElement('section', null,
+        React.createElement('h3', null, 'Carousel'),
+        React.createElement(Carousel, { items: slides.length ? slides : [{ title:'No slides yet', image_dataurl:'images/user.png' }] })
+      )
+    );
   }
 
-  function update() {
-    const width = shell.clientWidth || shell.offsetWidth || 0;
-    track.style.transform = `translateX(${-index * width}px)`;
-    Array.from(dotsBox.children).forEach((d, i) => d.classList.toggle('active', i === index));
-    setCaption(index);
-  }
-
-  function goTo(i) {
-    const len = slides.length;
-    // === วนลูป ===
-    index = ((i % len) + len) % len; // รองรับค่าติดลบ
-    update();
-  }
-
-  // ปุ่มก่อนหน้า/ถัดไป — วนลูป
-  if (prevBtn) prevBtn.addEventListener('click', () => goTo(index - 1));
-  if (nextBtn) nextBtn.addEventListener('click', () => goTo(index + 1));
-
-  window.addEventListener('resize', update);
-
-  // Swipe วนลูป
-  let startX = 0, isDown = false;
-  track.addEventListener('pointerdown', (e) => { isDown = true; startX = e.clientX; });
-  window.addEventListener('pointerup', (e) => {
-    if (!isDown) return;
-    const dx = e.clientX - startX;
-    if (dx > 40) goTo(index - 1);
-    else if (dx < -40) goTo(index + 1);
-    isDown = false;
-  });
-
-  // init
-  setCaption(0);
-  update();
-}
+  const root = ReactDOM.createRoot(document.getElementById('app'));
+  root.render(React.createElement(HomePage));
+})();

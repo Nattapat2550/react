@@ -1,50 +1,23 @@
-<!DOCTYPE html>
-<html lang="th">
+<!doctype html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Home</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link href="css/style.css" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css"/>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 </head>
 <body>
-  <nav class="nav">
-    <div class="brand">MySite</div>
-    <div class="links">
-      <a href="about.html">About</a>
-      <a href="contact.html">Contact</a>
-      <button id="themeToggle">🌓</button>
-      <div id="userMenu" class="user-menu">
-        <img id="avatar" src="images/user.png" alt="avatar" />
-        <span id="uname">...</span>
-        <div class="dropdown">
-          <a href="settings.html">Settings</a>
-          <button id="logoutBtn" class="linklike">Logout</button>
-        </div>
-      </div>
+  <header class="topbar">
+    <button id="themeToggle" aria-label="Toggle theme">🌓</button>
+    <button data-dd-toggle="userMenu" aria-expanded="false">User ⌄</button>
+    <div id="userMenu" data-dd-menu class="hidden" role="menu" aria-hidden="true">
+      <a href="settings.html" role="menuitem">Settings</a>
+      <a href="index.html" id="logoutLink" role="menuitem">Logout</a>
     </div>
-  </nav>
-
-  <main class="container">
-    <!-- Pure CSS/JS Carousel -->
-    <div class="carousel" id="carousel">
-      <div class="carousel-track" id="carousel-track"></div>
-      <button class="carousel-prev" id="carousel-prev" aria-label="รูปก่อนหน้า" title="< รูปก่อนหน้า">&lt;</button>
-      <button class="carousel-next" id="carousel-next" aria-label="รูปถัดไป" title="> รูปถัดไป">&gt;</button>
-      <div class="carousel-indicators" id="carousel-indicators"></div>
-    </div>
-
-    <div id="carousel-caption-box" class="card">
-      <h3 id="cc-title"></h3>
-      <h5 id="cc-subtitle" class="muted"></h5>
-      <p id="cc-desc"></p>
-    </div>
-
-    <hr/>
-    <h2 id="welcome_header"></h2>
-    <p id="main_paragraph"></p>
-  </main>
-
+  </header>
+  <main class="container" id="app"></main>
   <script src="js/main.js"></script>
   <script src="js/home.js"></script>
 </body>

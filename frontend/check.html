@@ -1,24 +1,21 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Verify Email</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link href="css/style.css" rel="stylesheet" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Verify Code</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 </head>
 <body>
-  <nav class="nav">
-    <div class="brand">MySite</div>
-    <div class="links"><a href="index.html">Home</a><button id="themeToggle">🌓</button></div>
-  </nav>
   <main class="container">
-    <h2>Enter 6-digit code</h2>
+    <h2>Enter verification code</h2>
     <form id="codeForm">
-      <label>Code</label>
-      <input type="text" id="code" maxlength="6" required />
+      <input id="code" placeholder="6-digit code" maxlength="6" required/>
       <button class="btn" type="submit">Verify</button>
     </form>
+    <p id="devHelp" class="muted"></p>
     <p id="msg" class="muted"></p>
   </main>
   <script src="js/main.js"></script>

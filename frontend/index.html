@@ -1,29 +1,33 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Welcome</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link href="css/style.css" rel="stylesheet" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Index</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 </head>
 <body>
-  <nav class="nav">
-    <div class="brand">MySite</div>
-    <div class="links">
-      <a href="about.html">About</a>
-      <a href="contact.html">Contact</a>
-      <button id="themeToggle">🌓</button>
+  <header class="topbar">
+    <button id="themeToggle" aria-label="Toggle theme">🌓</button>
+    <!-- ตัวอย่าง dropdown ปุ่มแบบ legacy -->
+    <button id="menuBtn" aria-expanded="false">Menu ⌄</button>
+    <div id="menu" role="menu" aria-hidden="true">
+      <a href="about.html" role="menuitem">About</a>
+      <a href="contact.html" role="menuitem">Contact</a>
+      <a href="login.html" role="menuitem">Login</a>
+      <a href="register.html" role="menuitem">Register</a>
     </div>
-  </nav>
-  <main class="container">
-    <h1>Welcome</h1>
-    <p>This is a public landing page. Please register or login to continue.</p>
-    <div class="actions">
-      <a class="btn" href="register.html">Register</a>
-      <a class="btn" href="login.html">Login</a>
+    <!-- ตัวอย่าง dropdown แบบ data-* -->
+    <button data-dd-toggle="quickMenu" aria-expanded="false">Quick ⌄</button>
+    <div id="quickMenu" data-dd-menu class="hidden" role="menu" aria-hidden="true">
+      <a href="home.html" role="menuitem">Home</a>
+      <a href="settings.html" role="menuitem">Settings</a>
     </div>
-  </main>
+  </header>
+  <main class="container" id="app"></main>
   <script src="js/main.js"></script>
+  <script src="js/index.js"></script>
 </body>
 </html>

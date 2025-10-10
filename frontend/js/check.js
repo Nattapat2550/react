@@ -2,6 +2,7 @@ const form = document.getElementById('codeForm');
 const msg = document.getElementById('msg');
 const email = sessionStorage.getItem('pendingEmail');
 if (!email) location.replace('register.html');
+
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   msg.textContent = '';
@@ -11,3 +12,11 @@ form.addEventListener('submit', async (e) => {
     location.href = `form.html?email=${encodeURIComponent(email)}`;
   } catch (err) { msg.textContent = err.message; }
 });
+
+const dev = sessionStorage.getItem('dev_code');
+if (dev) {
+  const p = document.getElementById('devHelp');
+  if (p) p.textContent = '[DEV ONLY] Auto-filled code: ' + dev;
+  const inp = document.getElementById('code');
+  if (inp) inp.value = dev;
+}
