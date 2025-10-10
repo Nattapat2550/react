@@ -32,13 +32,13 @@ router.post('/register', async (req, res) => {
     const code = generateCode();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await storeVerificationCode(user.id, code, expiresAt);
-    await sendEmail({
-      to: email,
-      subject: 'Your verification code',
-      text: `Your code is ${code}. It expires in 10 minutes.`,
-      html: `<p>Your code is <b>${code}</b>. It expires in 10 minutes.</p>`
-    });
-    res.status(201).json({ ok: true });
+    const emailDisabled = ((process.env.EMAIL_DISABLE||'').trim().toLowerCase()==='true');
+    if (!emailDisabled) {
+      await sendEmail({ to: email, subject: 'Your verification code', text: `Your code is ${code}. It expires in 10 minutes.`, html: `<p>Your code is <b>${code}</b>. It expires in 10 minutes.</p>` });
+    } else {
+      console.log('[EMAIL_DISABLE] Skip sending code %s to %s', code, email);
+    }
+    res.status(201).json(emailDisabled ? { ok: true, dev_code: code } : { ok: true });
   } catch (e) {
     console.error('register error', e);
     res.status(500).json({ error: 'Internal error' });

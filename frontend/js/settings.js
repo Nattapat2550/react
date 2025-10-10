@@ -1,60 +1,42 @@
-// React Settings Page
-(function(){
-  if (!document.getElementById('app')) return;
+const msg = document.getElementById('msg');
 
-  function SettingsPage(){
-    const [username, setUsername] = React.useState('');
-    const [msg, setMsg] = React.useState('');
-    const [me, setMe] = React.useState(null);
+async function loadMe() {
+  try {
+    const me = await api('/api/users/me');
+    document.getElementById('username').value = me.username || '';
+  } catch { location.replace('index.html'); }
+}
+loadMe();
 
-    React.useEffect(()=>{ (async()=>{
-      try { const m = await api('/api/users/me'); setMe(m); setUsername(m.username||''); }
-      catch { location.replace('index.html'); }
-    })(); }, []);
+document.getElementById('settingsForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  msg.textContent='';
+  const username = document.getElementById('username').value.trim();
+  try {
+    await api('/api/users/me', { method:'PUT', body:{ username }});
+    msg.textContent = 'Saved.';
+  } catch (err) { msg.textContent = err.message; }
+});
 
-    const onSubmit = async (e)=>{
-      e.preventDefault(); setMsg('');
-      try { await api('/api/users/me', { method:'PUT', body:{ username }});
-        setMsg('Saved.'); }
-      catch(err){ setMsg(err.message); }
-    };
-
-    const onUpload = async (e)=>{
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      setMsg('Uploading...');
-      const form = new FormData(); form.append('avatar', file);
-      try {
-        const res = await fetch(API_BASE_URL + '/api/users/upload-avatar', { method:'POST', body: form, credentials:'include' });
-        if (!res.ok) { const j = await res.json().catch(()=>({error:'Upload failed'})); throw new Error(j.error || 'Upload failed'); }
-        const data = await res.json(); setMe(m=>({ ...(m||{}), profile_picture_url: data.profile_picture_url })); setMsg('Avatar uploaded.');
-      } catch(err){ setMsg(err.message); }
-    };
-
-    const onDelete = async ()=>{
-      if (!confirm('Delete your account? This cannot be undone.')) return;
-      try { await api('/api/users/me', { method:'DELETE' }); location.replace('index.html'); }
-      catch(err){ setMsg(err.message); }
-    };
-
-    if (!me) return React.createElement('p', null, 'Loading...');
-    return React.createElement('div', {},
-      React.createElement('div', { className:'profile' },
-        React.createElement('img', { id:'avatar', src: me.profile_picture_url || 'images/user.png', width:64, height:64 }),
-      ),
-      React.createElement('form', { onSubmit },
-        React.createElement('label', null, 'Username'),
-        React.createElement('input', { value: username, onChange:e=>setUsername(e.target.value) }),
-        React.createElement('button', { className:'btn', type:'submit' }, 'Save')
-      ),
-      React.createElement('div', { className:'divider' }, 'Avatar'),
-      React.createElement('input', { type:'file', accept:'image/*', onChange: onUpload }),
-      React.createElement('div', { className:'divider' }),
-      React.createElement('button', { className:'btn outline', onClick: onDelete }, 'Delete account'),
-      React.createElement('p', { id:'msg', className:'muted' }, msg)
-    );
+document.getElementById('avatarForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  msg.textContent='';
+  const file = document.getElementById('avatarFile').files[0];
+  if (!file) { msg.textContent = 'Please choose an image.'; return; }
+  if (file.size > 2*1024*1024) { msg.textContent = 'File too large (max 2MB).'; return; }
+  const fd = new FormData(); fd.append('avatar', file);
+  const res = await fetch(`${API_BASE_URL}/api/users/me/avatar`, { method:'POST', credentials:'include', body: fd });
+  if (!res.ok) {
+    const j = await res.json().catch(()=>({error:'Upload failed'})); msg.textContent = j.error || 'Upload failed'; return;
   }
+  const data = await res.json();
+  const avatar = document.getElementById('avatar');
+  if (avatar && data.profile_picture_url) avatar.src = data.profile_picture_url;
+  msg.textContent = 'Avatar uploaded.';
+});
 
-  const root = ReactDOM.createRoot(document.getElementById('app'));
-  root.render(React.createElement(SettingsPage));
-})();
+document.getElementById('deleteBtn').addEventListener('click', async ()=>{
+  if (!confirm('Delete your account? This cannot be undone.')) return;
+  try { await api('/api/users/me', { method:'DELETE' }); location.replace('index.html'); }
+  catch (err) { msg.textContent = err.message; }
+});
