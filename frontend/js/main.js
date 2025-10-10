@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://backendlogins.onrender.com';
+const API_BASE_URL = 'https://react1-k4e2.onrender.com';
 
 /* ==== Theme toggle ==== */
 document.addEventListener('DOMContentLoaded', () => {
