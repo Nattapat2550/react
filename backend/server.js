@@ -14,7 +14,10 @@ const carouselRoutes = require('./routes/carousel');
 const app = express();
 app.set('trust proxy', 1);
 
-
+app.use(helmet());
+app.use(compression());
+app.use(express.json({ limit: '2mb' }));
+app.use(cookieParser());
 
 const FRONTEND = process.env.FRONTEND_URL;
 app.use(cors({
@@ -24,10 +27,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(helmet());
-app.use(compression());
-app.use(express.json({ limit: '1mb' }));
-app.use(cookieParser());
 // Health
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
 

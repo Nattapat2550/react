@@ -1,17 +1,6 @@
 const { google } = require('googleapis');
 const MailComposer = require('nodemailer/lib/mail-composer');
 
-// Short-circuit email in environments where email is disabled
-if ((process.env.EMAIL_DISABLE || '').trim().toLowerCase() === 'true') {
-  module.exports = {
-    async sendEmail({ to, subject, text, html }) {
-      console.log('[EMAIL_DISABLE] Simulate send to %s: %s', to, subject);
-      return;
-    }
-  };
-  return;
-}
-
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
