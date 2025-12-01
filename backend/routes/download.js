@@ -28,6 +28,21 @@ function safeDownload(res, filePath, downloadName) {
     });
   });
 }
+router.get('/', (_req, res) => {
+  const items = [
+    {
+      id: 1,
+      title: 'Windows Installer',
+      file_url: '/api/download/windows'
+    },
+    {
+      id: 2,
+      title: 'Android APK',
+      file_url: '/api/download/android'
+    }
+  ];
+  res.json(items);
+});
 
 // GET /api/download/windows -> ดาวน์โหลด MyAppSetup.exe
 router.get('/windows', (_req, res) => {
