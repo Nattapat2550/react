@@ -73,10 +73,11 @@ const Layout = ({ children }) => {
       {/* Top Nav */}
       <nav className="nav">
         <div className="brand">
-          <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <Link to="/" className="brand-text">
             MySite
           </Link>
         </div>
+
 
         <div className="links">
           {/* ลิงก์เมนูหลักเหมือนเวอร์ชันเก่า */}

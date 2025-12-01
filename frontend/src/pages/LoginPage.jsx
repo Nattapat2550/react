@@ -1,3 +1,4 @@
+// frontend/src/pages/LoginPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { login, clearAuthError } from '../slices/authSlice';
@@ -15,6 +16,7 @@ const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); // <-- state ใหม่
   const [localError, setLocalError] = useState(null);
 
   useEffect(() => {
@@ -59,7 +61,7 @@ const LoginPage = () => {
 
         <label>Password</label>
         <input
-          type="password"
+          type={showPassword ? 'text' : 'password'}  // <-- เปลี่ยนตาม checkbox
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -67,7 +69,12 @@ const LoginPage = () => {
 
         <div
           className="row"
-          style={{ display: 'flex', justifyContent: 'space-between' }}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: '1rem',
+            marginTop: '0.5rem'
+          }}
         >
           <label>
             <input
@@ -76,6 +83,15 @@ const LoginPage = () => {
               onChange={(e) => setRemember(e.target.checked)}
             />{' '}
             Remember me
+          </label>
+
+          <label>
+            <input
+              type="checkbox"
+              checked={showPassword}
+              onChange={(e) => setShowPassword(e.target.checked)}
+            />{' '}
+            แสดงรหัสผ่าน
           </label>
         </div>
 
