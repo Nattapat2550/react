@@ -12,15 +12,21 @@ const LandingPage = () => {
   }
 
   return (
-    <section>
+    <>
       <h1>Welcome</h1>
-      <p>This is the landing page of your React + Redux system.</p>
-      <div>
-        <Link to="/login">Login</Link>
-        {' | '}
-        <Link to="/register">Register</Link>
+      <p>
+        This is a public landing page. Please register or login to
+        continue.
+      </p>
+      <div className="actions">
+        <Link className="btn" to="/register">
+          Register
+        </Link>
+        <Link className="btn" to="/login">
+          Login
+        </Link>
       </div>
-    </section>
+    </>
   );
 };
 
