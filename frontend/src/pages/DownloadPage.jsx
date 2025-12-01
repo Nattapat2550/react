@@ -18,19 +18,52 @@ const DownloadPage = () => {
   }, []);
 
   return (
-    <section>
-      <h2>Downloads</h2>
-      {msg && <p style={{ color: 'red' }}>{msg}</p>}
-      <ul>
+    <>
+      <h2>Download</h2>
+      <p className="muted">
+        เลือกดาวน์โหลดเวอร์ชันที่คุณต้องการด้านล่าง
+      </p>
+
+      {msg && (
+        <p className="muted" style={{ color: 'var(--acc-1)' }}>
+          {msg}
+        </p>
+      )}
+
+      <div
+        className="download-list"
+        style={{
+          display: 'grid',
+          gap: '1rem',
+          marginTop: '1rem'
+        }}
+      >
         {items.map((d) => (
-          <li key={d.id}>
-            <a href={d.file_url} target="_blank" rel="noreferrer">
-              {d.title || d.file_url}
+          <div
+            key={d.id}
+            className="download-card"
+            style={{
+              padding: '1rem',
+              borderRadius: '0.5rem',
+              border: '1px solid var(--border, #ddd)'
+            }}
+          >
+            <h3>{d.title || 'File'}</h3>
+            {d.description && (
+              <p className="muted">{d.description}</p>
+            )}
+            <a
+              href={d.file_url}
+              className="btn"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Download
             </a>
-          </li>
+          </div>
         ))}
-      </ul>
-    </section>
+      </div>
+    </>
   );
 };
 

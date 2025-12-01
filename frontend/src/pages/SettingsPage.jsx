@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import api from '../api';
 import { useNavigate } from 'react-router-dom';
 
@@ -7,6 +7,7 @@ const SettingsPage = () => {
   const [avatarUrl, setAvatarUrl] = useState('');
   const [msg, setMsg] = useState(null);
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     const loadMe = async () => {
@@ -67,11 +68,16 @@ const SettingsPage = () => {
     }
   };
 
+  const triggerFileSelect = () => {
+    fileInputRef.current?.click();
+  };
+
   return (
-    <section>
+    <>
       <h2>Settings</h2>
+
       {avatarUrl && (
-        <div>
+        <div className="avatar-wrapper" style={{ marginBottom: '1rem' }}>
           <img
             src={avatarUrl}
             alt="avatar"
@@ -79,34 +85,54 @@ const SettingsPage = () => {
           />
         </div>
       )}
-      <form onSubmit={handleProfileSave}>
-        <div>
-          <label>
-            Username
-            <input
-              type="text"
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value.trimStart())}
-            />
-          </label>
-        </div>
-        <button type="submit">Save profile</button>
+
+      <form id="settingsForm" onSubmit={handleProfileSave}>
+        <label>Username</label>
+        <input
+          type="text"
+          required
+          value={username}
+          onChange={(e) => setUsername(e.target.value.trimStart())}
+        />
+
+        <button className="btn" type="submit">
+          Save profile
+        </button>
       </form>
 
-      <div>
-        <label>
-          Avatar
-          <input type="file" accept="image/*" onChange={handleAvatarChange} />
-        </label>
+      <div style={{ marginTop: '1rem' }}>
+        <button
+          type="button"
+          className="btn outline"
+          onClick={triggerFileSelect}
+        >
+          Change avatar
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleAvatarChange}
+          style={{ display: 'none' }}
+        />
       </div>
 
-      <button type="button" onClick={handleDelete}>
-        Delete my account
-      </button>
+      <div style={{ marginTop: '2rem' }}>
+        <button
+          type="button"
+          className="btn danger"
+          onClick={handleDelete}
+        >
+          Delete my account
+        </button>
+      </div>
 
-      {msg && <p style={{ color: 'red' }}>{msg}</p>}
-    </section>
+      {msg && (
+        <p className="muted" style={{ color: 'var(--acc-1)', marginTop: '1rem' }}>
+          {msg}
+        </p>
+      )}
+    </>
   );
 };
 

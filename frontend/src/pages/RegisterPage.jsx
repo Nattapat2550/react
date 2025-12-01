@@ -24,27 +24,39 @@ const RegisterPage = () => {
   };
 
   return (
-    <section>
+    <>
       <h2>Register</h2>
-      <button type="button" onClick={handleGoogle}>
+
+      <form id="registerForm" onSubmit={handleSubmit}>
+        <label>Email</label>
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value.trim())}
+        />
+
+        <button className="btn" type="submit">
+          Send verification code
+        </button>
+      </form>
+
+      <div className="divider">or</div>
+
+      <button
+        className="btn outline"
+        type="button"
+        onClick={handleGoogle}
+      >
         Continue with Google
       </button>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>
-            Email
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value.trim())}
-            />
-          </label>
-        </div>
-        <button type="submit">Send verification code</button>
-      </form>
-      {msg && <p style={{ color: 'red' }}>{msg}</p>}
-    </section>
+
+      {msg && (
+        <p className="muted" style={{ color: 'var(--acc-1)' }}>
+          {msg}
+        </p>
+      )}
+    </>
   );
 };
 
