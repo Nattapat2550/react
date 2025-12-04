@@ -1,13 +1,11 @@
 // src/App.jsx
-import React, { useEffect, Suspense, lazy } from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { checkAuthStatus } from './slices/authSlice';
 
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 
-// ✅ โหลดแบบ lazy เพื่อแยกไฟล์ JS ตามหน้า
+// ✅ lazy-load ทุกหน้าที่เป็น page เพื่อลดขนาด main bundle
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
@@ -22,25 +20,36 @@ const ContactPage = lazy(() => import('./pages/ContactPage'));
 const DownloadPage = lazy(() => import('./pages/DownloadPage'));
 
 const App = () => {
-  const dispatch = useDispatch();
-
   return (
     <Layout>
-      {/* ✅ ใส่ Suspense ครอบ Routes เพื่อมี fallback ตอนโหลด chunk */}
+      {/* Suspense ไว้ครอบ routing ทั้งหมด ให้ fallback ตอนโหลด chunk */}
       <Suspense fallback={<div className="page-loading">กำลังโหลด...</div>}>
         <Routes>
+          {/* Public routes */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/check" element={<CheckCodePage />} />
           <Route path="/form" element={<CompleteProfilePage />} />
           <Route path="/reset" element={<ResetPasswordPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/contact" element={<ContactPage />} />
 
+          {/* Protected routes – ต้องล็อกอินก่อน */}
           <Route
             path="/home"
             element={
               <ProtectedRoute>
                 <HomePage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
               </ProtectedRoute>
             }
           />
@@ -54,6 +63,7 @@ const App = () => {
             }
           />
 
+          {/* เฉพาะ role admin */}
           <Route
             path="/admin"
             element={
@@ -63,9 +73,7 @@ const App = () => {
             }
           />
 
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/contact" element={<ContactPage />} />
-
+          {/* route ไม่เจอ → กลับหน้าแรก */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
