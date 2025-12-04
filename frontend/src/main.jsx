@@ -6,7 +6,7 @@ import { Provider } from 'react-redux';
 
 import App from './App';
 import store from './store';       // ถ้าไฟล์ store อยู่คนละที่ ให้ปรับ path ตรงนี้
-import './style.css';              // หรือไฟล์ CSS หลักของคุณ
+import './index.css';              // หรือไฟล์ CSS หลักของคุณ
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
