@@ -1,23 +1,30 @@
-import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+// src/components/ProtectedRoute.jsx
+import React, { useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { Navigate } from 'react-router-dom';
+import { checkAuthStatus } from '../slices/authSlice';
 
 const ProtectedRoute = ({ children, roles }) => {
-  const { isAuthenticated, role, status } = useSelector((s) => s.auth);
-  const location = useLocation();
+  const dispatch = useDispatch();
+  const { isAuthenticated, role, status } = useSelector(state => state.auth);
 
-  const loading = status === 'idle' || status === 'loading';
+  useEffect(() => {
+    if (status === 'idle') {
+      dispatch(checkAuthStatus());
+    }
+  }, [status, dispatch]);
 
-  if (loading) {
-    return <div>Loading...</div>;
+  if (status === 'loading') {
+    // แสดง skeleton / loading เฉพาะหน้า protected
+    return <div>กำลังตรวจสอบสิทธิ์...</div>;
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to="/login" replace />;
   }
 
-  if (roles && roles.length > 0 && !roles.includes(role)) {
-    return <Navigate to="/home" replace />;
+  if (roles && !roles.includes(role)) {
+    return <Navigate to="/" replace />;
   }
 
   return children;

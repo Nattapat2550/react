@@ -24,10 +24,6 @@ const DownloadPage = lazy(() => import('./pages/DownloadPage'));
 const App = () => {
   const dispatch = useDispatch();
 
-  useEffect(() => {
-    dispatch(checkAuthStatus());
-  }, [dispatch]);
-
   return (
     <Layout>
       {/* ✅ ใส่ Suspense ครอบ Routes เพื่อมี fallback ตอนโหลด chunk */}
