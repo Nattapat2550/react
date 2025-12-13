@@ -1,4 +1,10 @@
+const path = require('path');
+
+// Load env:
+// - Prefer backend/.env when present
+// - Otherwise load project root .env (../.env) to match the "docker" style setup
 require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const express = require('express');
 const helmet = require('helmet');
 const compression = require('compression');
@@ -22,78 +28,45 @@ app.set('trust proxy', 1);
 app.use(helmet());
 
 // 2) ใส่ security headers เพิ่มเติม
-app.use((req, res, next) => {
-  // CSP สำหรับ backend (ตอบ JSON เป็นหลัก)
-  res.setHeader(
-    'Content-Security-Policy',
-    "default-src 'self'; frame-ancestors 'self'; base-uri 'self';"
-  );
+app.use(
+  helmet.contentSecurityPolicy({
+    useDefaults: true,
+    directives: {
+      // ปรับตามที่โปรเจกต์ต้องใช้ ถ้าฟรอนต์มี CDN ค่อยเพิ่ม
+      'script-src': ["'self'", "'unsafe-inline'"],
+      'img-src': ["'self'", 'data:', 'https:'],
+      'connect-src': ["'self'", 'https:'],
+    },
+  })
+);
 
-  // กันไม่ให้โดเมนอื่น iframe backend ของเรา → ป้องกัน clickjacking
-  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-
-  // จำกัด referrer ที่ส่งออกไปเว็บอื่น ๆ
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-
-  // ปิด feature ที่เราไม่ได้ใช้ใน backend นี้
-  res.setHeader(
-    'Permissions-Policy',
-    'geolocation=(), camera=(), microphone=(), payment=()'
-  );
-
-  next();
-});
-
-// 3) Compression + body parsers
+// 3) gzip ลดขนาด response
 app.use(compression());
+
+// 4) CORS
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+app.use(
+  cors({
+    origin: FRONTEND_URL,
+    credentials: true,
+  })
+);
+
+// 5) body parser + cookies
 app.use(express.json({ limit: '2mb' }));
-app.use(express.urlencoded({ extended: false, limit: '2mb' }));
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// 4) CORS – อนุญาตเฉพาะ origin ที่กำหนดใน FRONTEND_URL (คั่นด้วย , ได้หลายตัว)
-const allowedOrigins = (process.env.FRONTEND_URL || '')
-  .split(',')
-  .map(o => o.trim())
-  .filter(Boolean);
-
-app.use(cors({
-  origin(origin, cb) {
-    // ถ้ายังไม่ได้ตั้ง FRONTEND_URL เลย ให้ allow ทุก origin (เฉพาะ env dev)
-    if (allowedOrigins.length === 0) return cb(null, true);
-    // สำหรับ curl / same-origin (เช่น health check) ที่ไม่มี Origin header
-    if (!origin) return cb(null, true);
-    if (allowedOrigins.includes(origin)) return cb(null, true);
-    return cb(new Error('Not allowed by CORS'));
-  },
-  credentials: true,
-  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
-
-// 5) Health check
-app.get('/healthz', (_req, res) => res.json({ ok: true }));
-
-// 6) redirect root backend ไป frontend (กันคนเข้า URL backend ตรง ๆ)
-app.get('/', (_req, res) => {
-  if (process.env.FRONTEND_URL) {
-    return res.redirect(process.env.FRONTEND_URL);
-  }
-  return res.status(200).send('Backend OK');
-});
-
-// เงียบ favicon
-app.get('/favicon.ico', (_req, res) => res.status(204).end());
-
-// 7) Rate limit เฉพาะ /api/auth (กัน brute-force login / register spam)
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,   // 15 นาที
-  max: 100,                   // 100 req / IP / 15 นาที
+// 6) rate limit ป้องกันยิงถี่
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 400,
   standardHeaders: true,
   legacyHeaders: false,
 });
-app.use('/api/auth', authLimiter);
+app.use(limiter);
 
-// 8) Routes หลัก
+// 7) routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
@@ -101,15 +74,30 @@ app.use('/api/homepage', homepageRoutes);
 app.use('/api/carousel', carouselRoutes);
 app.use('/api/download', downloadRoutes);
 
-// 9) 404
-app.use((req, res) => res.status(404).json({ error: 'Not found' }));
+// 8) health check
+app.get('/health', (req, res) => {
+  res.json({ ok: true, env: process.env.NODE_ENV || 'unknown' });
+});
 
-// 10) Error handler กลาง
-app.use((err, _req, res, _next) => {
-  console.error('Unhandled error', err);
-  if (res.headersSent) return;
-  res.status(500).json({ error: 'Internal error' });
+// 9) error handler
+app.use((err, req, res, next) => {
+  const status = err.status || 500;
+
+  // ปลอดภัย: ไม่ log secrets
+  console.error('[SERVER ERROR]', {
+    status,
+    message: err.message,
+    path: req.path,
+  });
+
+  res.status(status).json({
+    error: true,
+    message: err.message || 'Internal Server Error',
+    status,
+  });
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, '0.0.0.0', () => console.log(`Server listening on ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Backend running on port ${PORT}`);
+});

@@ -1,94 +1,116 @@
-const api = require('../config/api');
+// backend/models/user.js
+// IMPORTANT: This projectreact backend MUST NOT access PostgreSQL directly.
+// Instead, it calls the dedicated DB-only layer (pure-api) server-to-server.
 
-async function createUserByEmail(email) {
-  const { data } = await api.post('/api/internal/create-user-email', { email });
-  return data.data;
-}
+const { post, get } = require('../utils/pureApiClient');
 
-async function findUserByEmail(email) {
-  const { data } = await api.post('/api/internal/find-user', { email });
-  return data.data;
-}
+/**
+ * Pure API internal endpoints (recommended):
+ * - /api/internal/auth/register
+ * - /api/internal/auth/login
+ * - /api/internal/auth/verify
+ * - /api/internal/auth/resend
+ * - /api/internal/auth/forgot
+ * - /api/internal/auth/reset
+ * - /api/internal/users/me
+ * - /api/internal/users/by-email
+ * - /api/internal/users/update
+ * - /api/internal/admin/users/update
+ *
+ * NOTE: The actual endpoint paths must exist in pure-api. These are aligned to the docker-style separation:
+ * projectreact backend acts as "backend" and pure-api is the only DB access.
+ */
 
-async function findUserById(id) {
-  const { data } = await api.post('/api/internal/find-user', { id });
-  return data.data;
-}
-
-async function findUserByOAuth(provider, oauthId) {
-  const { data } = await api.post('/api/internal/find-user', { provider, oauthId });
-  return data.data;
-}
-
-async function setUsernameAndPassword(email, username, password) {
-  const { data } = await api.post('/api/internal/set-username-password', { email, username, password });
-  return data.data;
-}
-
-async function updateProfile(userId, { username, profilePictureUrl }) {
-  // ใช้ endpoint admin update เพื่อแก้ไขข้อมูล
-  const { data } = await api.post('/api/internal/admin/users/update', {
-    id: userId,
+// Register (create user + verification code)
+async function createUser(username, email, hashedPassword) {
+  return post('/api/internal/auth/register', {
     username,
-    profile_picture_url: profilePictureUrl
+    email,
+    password_hash: hashedPassword,
   });
-  return data.data;
 }
 
-async function deleteUser(userId) {
-  await api.post('/api/internal/delete-user', { id: userId });
+// Login (validate password hash is done in this backend, so pure-api should return user by email)
+async function getUserByEmail(email) {
+  return post('/api/internal/users/by-email', { email });
 }
 
-async function getAllUsers() {
-  const { data } = await api.get('/api/internal/admin/users');
-  return data.data;
+// Find user by id (profile)
+async function getUserById(id) {
+  return post('/api/internal/users/me', { id });
 }
 
-async function adminUpdateUser(id, payload) {
-  const { data } = await api.post('/api/internal/admin/users/update', {
-    id,
-    ...payload
+// Set email verified
+async function verifyUser(email) {
+  return post('/api/internal/auth/verify', { email });
+}
+
+// Create verification code (for resend)
+async function createVerificationCode(email, code, expiresAt) {
+  return post('/api/internal/auth/resend', {
+    email,
+    code,
+    expires_at: expiresAt,
   });
-  return data.data;
 }
 
-async function storeVerificationCode(userId, code, expiresAt) {
-  const { data } = await api.post('/api/internal/store-verification-code', { userId, code, expiresAt });
-  return data.ok;
-}
-
-async function validateAndConsumeCode(email, code) {
-  const { data } = await api.post('/api/internal/verify-code', { email, code });
-  return data;
-}
-
-async function setOAuthUser(payload) {
-  const { data } = await api.post('/api/internal/set-oauth-user', payload);
-  return data.data;
-}
-
+// Password reset token creation
 async function createPasswordResetToken(email, token, expiresAt) {
-  const { data } = await api.post('/api/internal/create-reset-token', { email, token, expiresAt });
-  return data.data;
+  return post('/api/internal/auth/forgot', {
+    email,
+    token,
+    expires_at: expiresAt,
+  });
 }
 
-async function consumePasswordResetToken(token) {
-  const { data } = await api.post('/api/internal/consume-reset-token', { token });
-  return data.data;
+// Get password reset token (validate)
+async function getPasswordResetToken(token) {
+  return post('/api/internal/auth/reset/get', { token });
 }
 
-async function setPassword(userId, newPassword) {
-  const { data } = await api.post('/api/internal/set-password', { userId, newPassword });
-  return data.data;
+// Update password by email (after token validation)
+async function updatePassword(email, hashedPassword) {
+  return post('/api/internal/auth/reset', {
+    email,
+    password_hash: hashedPassword,
+  });
 }
 
-// ฟังก์ชัน markEmailVerified ไม่จำเป็นต้องใช้แล้ว เพราะ Pure API จัดการให้ใน process อื่น
-function markEmailVerified() { return null; }
+// Google login helpers (upsert user by google_id)
+async function findUserByGoogleId(googleId) {
+  return post('/api/internal/auth/google/find', { google_id: googleId });
+}
+
+async function createGoogleUser({ username, email, googleId, avatarUrl }) {
+  return post('/api/internal/auth/google/create', {
+    username,
+    email,
+    google_id: googleId,
+    avatar_url: avatarUrl,
+  });
+}
+
+// Update user profile (non-admin)
+async function updateUserProfile(id, payload) {
+  return post('/api/internal/users/update', { id, ...payload });
+}
+
+// Admin update user
+async function adminUpdateUser(id, payload) {
+  return post('/api/internal/admin/users/update', { id, ...payload });
+}
 
 module.exports = {
-  createUserByEmail, findUserByEmail, findUserById, findUserByOAuth,
-  markEmailVerified, setUsernameAndPassword, updateProfile, deleteUser,
-  getAllUsers, storeVerificationCode, validateAndConsumeCode, setOAuthUser,
-  createPasswordResetToken, consumePasswordResetToken, setPassword,
-  adminUpdateUser // เพิ่ม export สำหรับ route admin
+  createUser,
+  getUserByEmail,
+  getUserById,
+  verifyUser,
+  createVerificationCode,
+  createPasswordResetToken,
+  getPasswordResetToken,
+  updatePassword,
+  findUserByGoogleId,
+  createGoogleUser,
+  updateUserProfile,
+  adminUpdateUser,
 };

@@ -1,22 +1,27 @@
-const api = require('../config/api');
+// backend/models/carousel.js
+// IMPORTANT: do not access DB directly. Use pure-api only.
 
-async function listCarouselItems() {
-  const { data } = await api.get('/api/internal/carousel/list');
-  return data.data;
+const { get, post } = require('../utils/pureApiClient');
+
+async function getCarouselItems() {
+  return get('/api/internal/carousel/items');
 }
 
-async function createCarouselItem(payload) {
-  const { data } = await api.post('/api/internal/carousel/create', payload);
-  return data.data;
+async function addCarouselItem(item) {
+  return post('/api/internal/carousel/items/add', item);
 }
 
-async function updateCarouselItem(id, payload) {
-  const { data } = await api.post('/api/internal/carousel/update', { id, ...payload });
-  return data.data;
+async function updateCarouselItem(id, item) {
+  return post('/api/internal/carousel/items/update', { id, ...item });
 }
 
 async function deleteCarouselItem(id) {
-  await api.post('/api/internal/carousel/delete', { id });
+  return post('/api/internal/carousel/items/delete', { id });
 }
 
-module.exports = { listCarouselItems, createCarouselItem, updateCarouselItem, deleteCarouselItem };
+module.exports = {
+  getCarouselItems,
+  addCarouselItem,
+  updateCarouselItem,
+  deleteCarouselItem,
+};

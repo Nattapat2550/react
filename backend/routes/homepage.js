@@ -1,26 +1,27 @@
 const express = require('express');
-const api = require('../config/api'); // เปลี่ยนจาก pool
-const { authenticateJWT, isAdmin } = require('../middleware/auth');
-
 const router = express.Router();
 
-router.get('/', async (_req, res) => {
+// IMPORTANT: Use pure-api only (no direct DB)
+const { get, post } = require('../utils/pureApiClient');
+
+// GET homepage content
+router.get('/', async (req, res, next) => {
   try {
-    const { data } = await api.get('/api/internal/homepage/list');
-    res.json(data.data);
-  } catch (e) {
-    res.status(500).json({ error: 'Internal error' });
+    const data = await get('/api/internal/homepage');
+    res.json(data);
+  } catch (err) {
+    next(err);
   }
 });
 
-router.put('/', authenticateJWT, isAdmin, async (req, res) => {
-  const { section_name, content } = req.body || {};
-  if (!section_name) return res.status(400).json({ error: 'Missing section_name' });
+// UPDATE homepage content (admin or authorized)
+router.post('/update', async (req, res, next) => {
   try {
-    const { data } = await api.post('/api/internal/homepage/update', { section_name, content });
-    res.json(data.data);
-  } catch (e) {
-    res.status(500).json({ error: 'Internal error' });
+    const payload = req.body || {};
+    const data = await post('/api/internal/homepage/update', payload);
+    res.json(data);
+  } catch (err) {
+    next(err);
   }
 });
 
