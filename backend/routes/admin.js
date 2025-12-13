@@ -1,36 +1,41 @@
-// backend/routes/admin.js
 const express = require('express');
 const { authenticateJWT, isAdmin } = require('../middleware/auth');
-const { getAllUsers } = require('../models/user');
-const { callPureApi } = require('../utils/pureApi'); // เพิ่มบรรทัดนี้
+const { getAllUsers, adminUpdateUser } = require('../models/user'); // เพิ่ม import adminUpdateUser
 const multer = require('multer');
 const upload = multer({ limits: { fileSize: 4 * 1024 * 1024 } });
 
 const router = express.Router();
 
 router.get('/users', authenticateJWT, isAdmin, async (_req, res) => {
-  // models/user.js ถูกแก้ให้เรียก API แล้ว เรียกใช้ได้เลย
-  const users = await getAllUsers();
-  res.json(users);
+  try {
+    const users = await getAllUsers();
+    res.json(users);
+  } catch (e) {
+    res.status(500).json({ error: 'Internal error' });
+  }
 });
 
 router.put('/users/:id', authenticateJWT, isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const body = req.body || {};
-    // ตรงนี้ต้องเรียก API โดยตรง หรือจะเพิ่ม function ใน model ก็ได้
-    // แต่เพื่อความชัวร์ เรียก pureApi ตรงนี้เลย
-    const updated = await callPureApi('/admin/users/update', 'POST', { id, ...body });
+    const { username, email, role, profile_picture_url } = req.body || {};
     
-    if (!updated) return res.status(404).json({ error: 'Not found or Update failed' });
+    // ใช้ adminUpdateUser ที่สร้างไว้ใน models/user.js แทนการ query เอง
+    const updated = await adminUpdateUser(id, { username, email, role, profile_picture_url });
+    
+    if (!updated) return res.status(404).json({ error: 'Not found' });
     res.json(updated);
   } catch (e) {
+    // Pure API อาจจะส่ง error กลับมาถ้าซ้ำ
+    if (e.response?.status === 409 || e.code === '23505') {
+        return res.status(409).json({ error: 'Duplicate value' });
+    }
     console.error('admin update user error', e);
     res.status(500).json({ error: 'Internal error' });
   }
 });
 
-// Carousel endpoints (เรียกผ่าน Model ซึ่งแก้ไปแล้ว)
+// Carousel admin endpoints
 const {
   createCarouselItem, updateCarouselItem, deleteCarouselItem, listCarouselItems
 } = require('../models/carousel');
@@ -44,11 +49,10 @@ router.post('/carousel', authenticateJWT, isAdmin, upload.single('image'), async
   try {
     const { itemIndex, title, subtitle, description } = req.body || {};
     if (!req.file) return res.status(400).json({ error: 'Image required' });
-    
     const mime = req.file.mimetype;
+    if (!/^image\/(png|jpe?g|gif|webp)$/.test(mime)) return res.status(400).json({ error: 'Unsupported image type' });
     const b64 = req.file.buffer.toString('base64');
     const dataUrl = `data:${mime};base64,${b64}`;
-    
     const created = await createCarouselItem({
       itemIndex: itemIndex !== undefined ? Number(itemIndex) : 0,
       title, subtitle, description, imageDataUrl: dataUrl
@@ -67,6 +71,7 @@ router.put('/carousel/:id', authenticateJWT, isAdmin, upload.single('image'), as
     let dataUrl = null;
     if (req.file) {
       const mime = req.file.mimetype;
+      if (!/^image\/(png|jpe?g|gif|webp)$/.test(mime)) return res.status(400).json({ error: 'Unsupported image type' });
       const b64 = req.file.buffer.toString('base64');
       dataUrl = `data:${mime};base64,${b64}`;
     }
