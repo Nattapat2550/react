@@ -26,6 +26,7 @@ async function setUsernameAndPassword(email, username, password) {
 }
 
 async function updateProfile(userId, { username, profilePictureUrl }) {
+  // ใช้ endpoint ของ admin update แทน (หรือสร้าง user update ใน pure-api ก็ได้)
   return await callPureApi('/admin/users/update', 'POST', { 
     id: userId, 
     username, 
@@ -34,8 +35,8 @@ async function updateProfile(userId, { username, profilePictureUrl }) {
 }
 
 async function deleteUser(userId) {
-  // รองรับในอนาคต
-  console.warn('deleteUser via API not fully implemented');
+  // ยังไม่มี implementation
+  return null;
 }
 
 async function getAllUsers() {

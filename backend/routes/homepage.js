@@ -1,7 +1,7 @@
 // backend/routes/homepage.js
 const express = require('express');
-const { callPureApi } = require('../utils/pureApi');
 const { authenticateJWT, isAdmin } = require('../middleware/auth');
+const { callPureApi } = require('../utils/pureApi'); // เรียกใช้ pureApi
 
 const router = express.Router();
 
@@ -15,6 +15,7 @@ router.put('/', authenticateJWT, isAdmin, async (req, res) => {
   if (!section_name) return res.status(400).json({ error: 'Missing section_name' });
   
   const result = await callPureApi('/homepage/update', 'POST', { section_name, content });
+  if (!result) return res.status(500).json({ error: 'Update failed' });
   res.json(result);
 });
 

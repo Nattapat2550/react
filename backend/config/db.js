@@ -1,4 +1,6 @@
 // backend/config/db.js
 module.exports = {
-  query: () => { throw new Error("Legacy DB connection removed. Use pureApi instead."); }
+  query: () => { 
+    throw new Error("Local DB connection is disabled. Please use 'pureApi' instead."); 
+  }
 };
