@@ -53,8 +53,7 @@ app.use(cookieParser());
 // 4) CORS – อนุญาตเฉพาะ origin ที่กำหนดใน FRONTEND_URL (คั่นด้วย , ได้หลายตัว)
 const allowedOrigins = (process.env.FRONTEND_URL || '')
   .split(',')
-  .map(o => o.trim())
-  .filter(Boolean);
+  .map(o => o.trim().replace(/\/$/, ''));
 
 app.use(cors({
   origin(origin, cb) {
