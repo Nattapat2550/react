@@ -200,23 +200,23 @@ router.get('/google/callback', async (req, res) => {
 
     if (!user.username) {
       return res.redirect(
-        `${process.env.FRONTEND_URL}/form.html?email=${encodeURIComponent(
+        `${process.env.FRONTEND_URL}/form?email=${encodeURIComponent(
           email,
         )}`,
       );
     }
 
     if (user.role === 'admin') {
-      return res.redirect(`${process.env.FRONTEND_URL}/admin.html`);
+      return res.redirect(`${process.env.FRONTEND_URL}/admin`);
     }
-    return res.redirect(`${process.env.FRONTEND_URL}/home.html`);
+    return res.redirect(`${process.env.FRONTEND_URL}/home`);
   } catch (e) {
     console.error(
       'google callback error',
       e?.response?.data || e?.message || e,
     );
     return res.redirect(
-      `${process.env.FRONTEND_URL}/login.html?error=oauth_failed`,
+      `${process.env.FRONTEND_URL}/login?error=oauth_failed`,
     );
   }
 });
