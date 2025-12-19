@@ -1,135 +1,115 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../api';
 
 const HomePage = () => {
-  const [me, setMe] = useState(null);
-  const [content, setContent] = useState({});
-  const [carousel, setCarousel] = useState([]);
-  const [index, setIndex] = useState(0);
-  const [msg, setMsg] = useState(null);
+  const [slides, setSlides] = useState([]);
+  const [current, setCurrent] = useState(0);
+  const timeoutRef = useRef(null);
 
+  // 1. Fetch Carousel Data
   useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
+    const fetchSlides = async () => {
       try {
-        // ใช้ Promise.allSettled เพื่อให้ตัวใดตัวหนึ่งพัง (เช่น carousel 401) หน้าเว็บไม่พัง
-        const results = await Promise.allSettled([
-          api.get('/api/auth/me'),
-          api.get('/api/homepage'),
-          api.get('/api/carousel') // Rust บังคับ Admin เท่านั้น
-        ]);
-
-        if (cancelled) return;
-
-        // 1. User Info
-        if (results[0].status === 'fulfilled') {
-          setMe(results[0].value.data.data);
-        }
-
-        // 2. Homepage Content
-        if (results[1].status === 'fulfilled') {
-          const list = results[1].value.data.data || [];
-          const map = {};
-          list.forEach((c) => {
-            map[c.section_name] = c.content;
-          });
-          setContent(map);
-        }
-
-        // 3. Carousel
-        if (results[2].status === 'fulfilled') {
-          setCarousel(results[2].value.data.data || []);
+        const res = await api.get('/api/carousel');
+        if (res.data.ok && res.data.data.length > 0) {
+          setSlides(res.data.data);
         } else {
-          // ถ้าโหลดไม่ได้ (เช่นไม่ได้เป็น Admin) ให้เป็น list ว่างๆ
-          setCarousel([]);
+          // Fallback ถ้าไม่มีข้อมูลใน DB
+          setSlides([
+             { 
+               id: 999, 
+               image_dataurl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&q=80', 
+               title: 'Welcome to MyApp',
+               description: 'Secure & Fast Platform'
+             }
+          ]);
         }
-
       } catch (err) {
-        if (!cancelled) setMsg('Failed to load data');
+        console.error("Load carousel failed", err);
       }
     };
-
-    load();
-    return () => { cancelled = true; };
+    fetchSlides();
   }, []);
 
-  const hasCarousel = carousel && carousel.length > 0;
-  const safeIndex = hasCarousel
-    ? ((index % carousel.length) + carousel.length) % carousel.length
-    : 0;
-  const currentItem = hasCarousel ? carousel[safeIndex] : null;
+  // 2. Auto Slide Logic
+  useEffect(() => {
+    resetTimeout();
+    timeoutRef.current = setTimeout(() => {
+      setCurrent((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
+    }, 4000); // เปลี่ยนทุก 4 วินาที
 
-  const go = (delta) => {
-    if (!hasCarousel) return;
-    setIndex((i) => i + delta);
+    return () => resetTimeout();
+  }, [current, slides.length]);
+
+  const resetTimeout = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
   };
-
-  const goto = (i) => {
-    if (!hasCarousel) return;
-    setIndex(i);
-  };
-
-  const welcomeHeader = content.welcome_header || (me ? `Welcome, ${me.username || me.email}` : 'Welcome');
-  const mainParagraph = content.main_paragraph || 'This is your dashboard.';
 
   return (
-    <>
-      {/* Carousel */}
-      <div className="carousel" id="carousel">
-        <div
-          className="carousel-track"
-          style={{ transform: `translateX(-${safeIndex * 100}%)` }}
-        >
-          {hasCarousel ? (
-            carousel.map((item) => (
-              <div className="carousel-slide" key={item.id}>
-                {item.image_dataurl ? (
-                  <img src={item.image_dataurl} alt={item.title || 'Slide'} />
-                ) : (
-                  <div className="muted">No image</div>
-                )}
+    <div className="home-container">
+      {/* Hero / Carousel Section */}
+      <div className="carousel-container" style={{ position: 'relative', overflow: 'hidden', height: '400px', borderRadius: '12px', marginBottom: '2rem', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+        
+        {slides.length > 0 ? (
+          <div 
+            className="carousel-track"
+            style={{
+              display: 'flex',
+              transform: `translateX(-${current * 100}%)`,
+              transition: 'transform 0.5s ease-in-out',
+              height: '100%'
+            }}
+          >
+            {slides.map((slide, idx) => (
+              <div key={idx} style={{ minWidth: '100%', position: 'relative' }}>
+                <img 
+                  src={slide.image_dataurl} 
+                  alt={slide.title} 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                />
+                <div style={{
+                  position: 'absolute', bottom: '30px', left: '30px',
+                  background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '15px 25px', borderRadius: '8px',
+                  backdropFilter: 'blur(4px)'
+                }}>
+                  <h2 style={{ margin: '0 0 5px 0', fontSize: '1.5rem' }}>{slide.title}</h2>
+                  {slide.description && <p style={{ margin: 0, opacity: 0.9 }}>{slide.description}</p>}
+                </div>
               </div>
-            ))
-          ) : (
-            <div className="carousel-slide">
-              <div className="muted" style={{textAlign: 'center', paddingTop: '20px'}}>
-                 {/* ไม่แสดงอะไร หรือบอกว่าไม่มีสไลด์ */}
-                 No active slides
-              </div>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', background: '#eee' }}>
+            Loading...
+          </div>
+        )}
 
-        <button className="carousel-prev" onClick={() => go(-1)} disabled={!hasCarousel}>&lt;</button>
-        <button className="carousel-next" onClick={() => go(1)} disabled={!hasCarousel}>&gt;</button>
-
-        <div className="carousel-indicators">
-          {hasCarousel && carousel.map((item, i) => (
-            <button
-              key={item.id}
-              className={i === safeIndex ? 'active' : ''}
-              onClick={() => goto(i)}
-            >
-              •
-            </button>
+        {/* Indicators */}
+        <div style={{ position: 'absolute', bottom: '15px', width: '100%', textAlign: 'center', zIndex: 10 }}>
+          {slides.map((_, idx) => (
+            <span 
+              key={idx}
+              onClick={() => setCurrent(idx)}
+              style={{
+                display: 'inline-block',
+                width: '10px', height: '10px',
+                borderRadius: '50%',
+                background: current === idx ? '#fff' : 'rgba(255,255,255,0.4)',
+                margin: '0 6px', cursor: 'pointer',
+                transition: 'background 0.3s'
+              }}
+            />
           ))}
         </div>
       </div>
 
-      <div id="carousel-caption-box" className="card">
-        <h3>{currentItem?.title || ''}</h3>
-        <h5 className="muted">{currentItem?.subtitle || ''}</h5>
-        <p>{currentItem?.description || ''}</p>
+      <div style={{ textAlign: 'center', marginTop: '3rem' }}>
+        <h1>Ready to get started?</h1>
+        <p style={{ color: '#666', marginBottom: '1.5rem' }}>Download our application to experience the full features.</p>
+        <Link to="/download" className="btn" style={{ padding: '0.8rem 2rem', fontSize: '1.1rem' }}>Download App</Link>
       </div>
-
-      <hr />
-
-      <h2>{welcomeHeader}</h2>
-      <p>{mainParagraph}</p>
-
-      {msg && <p className="muted" style={{ color: 'red' }}>{msg}</p>}
-    </>
+    </div>
   );
 };
 

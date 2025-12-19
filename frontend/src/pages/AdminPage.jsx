@@ -1,206 +1,255 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
+import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 
 const AdminPage = () => {
-  const [users, setUsers] = useState([]);
-  const [carousel, setCarousel] = useState([]);
-  const [sectionName, setSectionName] = useState('welcome_header');
-  const [sectionContent, setSectionContent] = useState('');
-  
-  // Carousel Form
-  const [newIndex, setNewIndex] = useState('');
-  const [newTitle, setNewTitle] = useState('');
-  const [newSubtitle, setNewSubtitle] = useState('');
-  const [newDescription, setNewDescription] = useState('');
-  const [newImage, setNewImage] = useState(null);
-  const [fileMap, setFileMap] = useState({});
-  const [msg, setMsg] = useState(null);
+  const { role } = useSelector((s) => s.auth);
+  const navigate = useNavigate();
+  const [tab, setTab] = useState('users'); // 'users' หรือ 'carousel'
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        // ✅ Path ของ Rust
-        const usersRes = await api.get('/api/users');
-        setUsers(usersRes.data.data || []);
+    if (role !== 'admin') {
+      navigate('/home');
+    }
+  }, [role, navigate]);
 
-        const carouselRes = await api.get('/api/carousel');
-        setCarousel(carouselRes.data.data || []);
-      } catch (err) {
-        setMsg(err.response?.data?.error || 'Failed to load admin data');
+  return (
+    <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto' }}>
+      <h2 style={{ marginBottom: '1.5rem' }}>Admin Dashboard</h2>
+      
+      {/* Tabs Navigation */}
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid #ddd' }}>
+        <button 
+          className={`btn ${tab === 'users' ? '' : 'outline'}`} 
+          style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0, borderBottom: 'none' }}
+          onClick={() => setTab('users')}
+        >
+          Manage Users
+        </button>
+        <button 
+          className={`btn ${tab === 'carousel' ? '' : 'outline'}`} 
+          style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0, borderBottom: 'none' }}
+          onClick={() => setTab('carousel')}
+        >
+          Manage Carousel
+        </button>
+      </div>
+
+      {/* Render Sub-components */}
+      {tab === 'users' ? <UsersManager /> : <CarouselManager />}
+    </div>
+  );
+};
+
+// --- Sub-Component: Manage Users ---
+const UsersManager = () => {
+  const [users, setUsers] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [search, setSearch] = useState('');
+
+  const fetchUsers = async () => {
+    try {
+      const res = await api.get(`/api/admin/users?page=${page}&q=${search}`);
+      if (res.data.ok) {
+        setUsers(res.data.data.users);
+        setTotalPages(res.data.data.total_pages);
       }
-    };
-    load();
-  }, []);
-
-  const handleHomeSubmit = async (e) => {
-    e.preventDefault();
-    setMsg(null);
-    try {
-      await api.put('/api/homepage', {
-        section_name: sectionName.trim(),
-        content: sectionContent
-      });
-      setMsg(`Section saved.`);
     } catch (err) {
-      setMsg('Failed to save homepage section');
+      console.error(err);
     }
   };
 
-  const handleUserFieldChange = (id, field, value) => {
-    setUsers((prev) => prev.map((u) => u.id === id ? { ...u, [field]: value } : u));
-  };
+  useEffect(() => { fetchUsers(); }, [page, search]);
 
-  const handleUserSave = async (id) => {
-    setMsg(null);
-    const u = users.find((x) => x.id === id);
-    if (!u) return;
+  const handleRoleChange = async (id, newRole) => {
     try {
-      // ✅ ใช้ PATCH /api/users/:id/role
-      await api.patch(`/api/users/${id}/role`, { role: u.role });
-      setMsg('User role saved.');
+      await api.patch(`/api/admin/users/${id}`, { role: newRole });
+      // update local state เพื่อความลื่นไหลไม่ต้อง fetch ใหม่ทันที
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, role: newRole } : u));
     } catch (err) {
-      setMsg('Failed to save user role');
+      alert('Update failed');
     }
-  };
-
-  // ---- Carousel Logic ----
-  const reloadCarousel = async () => {
-    const res = await api.get('/api/carousel');
-    setCarousel(res.data.data || []);
-    setFileMap({});
-  };
-
-  const handleNewCarouselSubmit = async (e) => {
-    e.preventDefault();
-    setMsg(null);
-    if (!newImage) { setMsg('Image required'); return; }
-
-    // ✅ แปลงรูปเป็น Base64 ส่งไป Backend
-    const reader = new FileReader();
-    reader.readAsDataURL(newImage);
-    reader.onload = async () => {
-      try {
-        await api.post('/api/carousel', {
-          item_index: parseInt(newIndex || '0'),
-          title: newTitle,
-          subtitle: newSubtitle,
-          description: newDescription,
-          image_dataurl: reader.result // ส่ง Base64 String
-        });
-        setNewIndex(''); setNewTitle(''); setNewSubtitle(''); setNewDescription(''); setNewImage(null);
-        await reloadCarousel();
-        setMsg('Item created.');
-      } catch (err) {
-        setMsg('Failed to create item');
-      }
-    };
-  };
-
-  const handleCarouselFieldChange = (id, field, value) => {
-    setCarousel(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
-  };
-  
-  const handleCarouselFileChange = (id, file) => {
-    setFileMap(prev => ({ ...prev, [id]: file }));
-  };
-
-  const handleCarouselSave = async (id) => {
-    const item = carousel.find(x => x.id === id);
-    if (!item) return;
-
-    const payload = {
-      item_index: item.item_index,
-      title: item.title,
-      subtitle: item.subtitle,
-      description: item.description
-    };
-
-    const doUpdate = async (p) => {
-      try {
-         await api.patch(`/api/carousel/${id}`, p);
-         setMsg('Item saved.');
-         reloadCarousel();
-      } catch(err) { setMsg('Failed to save'); }
-    };
-
-    if (fileMap[id]) {
-      const reader = new FileReader();
-      reader.readAsDataURL(fileMap[id]);
-      reader.onload = () => {
-        payload.image_dataurl = reader.result;
-        doUpdate(payload);
-      };
-    } else {
-      doUpdate(payload);
-    }
-  };
-
-  const handleCarouselDelete = async (id) => {
-    if (!window.confirm('Delete?')) return;
-    try {
-      await api.delete(`/api/carousel/${id}`);
-      setCarousel(prev => prev.filter(x => x.id !== id));
-    } catch(err) { setMsg('Failed to delete'); }
   };
 
   return (
-    <>
-      <h2>Admin Dashboard</h2>
+    <div>
+      <input 
+        type="text" placeholder="Search by email..." 
+        value={search} onChange={(e) => setSearch(e.target.value)}
+        style={{ marginBottom: '1rem', padding: '0.6rem', width: '100%', borderRadius: '4px', border: '1px solid #ccc' }}
+      />
       
-      <section>
-        <h3>Homepage Content</h3>
-        <form onSubmit={handleHomeSubmit}>
-           <label>Section</label><input value={sectionName} onChange={e=>setSectionName(e.target.value)} required/>
-           <label>Content</label><textarea value={sectionContent} onChange={e=>setSectionContent(e.target.value)} />
-           <button className="btn">Save</button>
-        </form>
-      </section>
-
-      <section>
-        <h3>Users (Role Only)</h3>
-        <table>
-          <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Action</th></tr></thead>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+          <thead>
+            <tr style={{ background: '#f8fafc', textAlign: 'left', color: '#64748b' }}>
+              <th style={{ padding: '1rem' }}>User</th>
+              <th style={{ padding: '1rem' }}>Role</th>
+              <th style={{ padding: '1rem' }}>Verified</th>
+            </tr>
+          </thead>
           <tbody>
             {users.map(u => (
-              <tr key={u.id}>
-                <td>{u.username}</td>
-                <td>{u.email}</td>
-                <td>
-                  <select value={u.role} onChange={e => handleUserFieldChange(u.id, 'role', e.target.value)}>
-                    <option value="user">user</option><option value="admin">admin</option>
+              <tr key={u.id} style={{ borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                    <img 
+                      src={u.profile_picture_url || '/images/user.png'} 
+                      alt="avatar" 
+                      style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', background: '#eee' }}
+                      onError={(e) => { e.target.src = '/images/user.png'; }} // Fallback
+                    />
+                    <div>
+                      <div style={{ fontWeight: '600' }}>{u.username || 'No Name'}</div>
+                      <div style={{ fontSize: '0.85rem', color: '#666' }}>{u.email}</div>
+                    </div>
+                  </div>
+                </td>
+                <td style={{ padding: '1rem' }}>
+                  <select 
+                    value={u.role}
+                    onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                    style={{ padding: '0.3rem', borderRadius: '4px', border: '1px solid #ddd' }}
+                  >
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
                   </select>
                 </td>
-                <td><button className="btn small" onClick={()=>handleUserSave(u.id)}>Save</button></td>
+                <td style={{ padding: '1rem' }}>
+                  {u.is_email_verified ? '✅' : '❌'}
+                </td>
               </tr>
             ))}
+            {users.length === 0 && <tr><td colSpan="3" style={{ padding: '2rem', textAlign: 'center' }}>No users found</td></tr>}
           </tbody>
         </table>
-      </section>
+      </div>
 
-      <section>
-        <h3>Carousel</h3>
-        <form onSubmit={handleNewCarouselSubmit}>
-           <input type="number" placeholder="Index" value={newIndex} onChange={e=>setNewIndex(e.target.value)} />
-           <input placeholder="Title" value={newTitle} onChange={e=>setNewTitle(e.target.value)} />
-           <input placeholder="Subtitle" value={newSubtitle} onChange={e=>setNewSubtitle(e.target.value)} />
-           <input placeholder="Desc" value={newDescription} onChange={e=>setNewDescription(e.target.value)} />
-           <input type="file" onChange={e=>setNewImage(e.target.files[0])} />
-           <button className="btn">Add</button>
+      {/* Pagination */}
+      <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'center', gap: '1rem', alignItems: 'center' }}>
+        <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="btn outline small">Prev</button>
+        <span>Page {page} of {totalPages}</span>
+        <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="btn outline small">Next</button>
+      </div>
+    </div>
+  );
+};
+
+// --- Sub-Component: Manage Carousel ---
+const CarouselManager = () => {
+  const [slides, setSlides] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Form
+  const [title, setTitle] = useState('');
+  const [desc, setDesc] = useState('');
+  const [file, setFile] = useState(null);
+
+  const fetchSlides = async () => {
+    const res = await api.get('/api/carousel');
+    setSlides(res.data.data || []);
+  };
+
+  useEffect(() => { fetchSlides(); }, []);
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this slide?')) return;
+    try {
+      await api.delete(`/api/carousel/${id}`);
+      fetchSlides();
+    } catch (err) {
+      alert('Delete failed');
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!file) return alert('Please select an image file');
+    setLoading(true);
+
+    // Convert File -> Base64
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = async () => {
+      const base64 = reader.result;
+      try {
+        await api.post('/api/carousel', {
+          title,
+          description: desc,
+          image_dataurl: base64, // ส่งไปให้ backend บันทึก
+          item_index: slides.length + 1
+        });
+        // Reset Form
+        setTitle(''); setDesc(''); setFile(null);
+        // Reset File Input
+        document.getElementById('fileInput').value = "";
+        fetchSlides();
+      } catch (err) {
+        alert('Failed to add slide. File might be too large.');
+      } finally {
+        setLoading(false);
+      }
+    };
+  };
+
+  return (
+    <div>
+      {/* Upload Form */}
+      <div style={{ marginBottom: '2rem', padding: '1.5rem', background: '#f1f5f9', borderRadius: '8px' }}>
+        <h3 style={{ marginTop: 0 }}>Add New Slide</h3>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', maxWidth: '500px' }}>
+          <input 
+            type="text" placeholder="Title" required 
+            value={title} onChange={e=>setTitle(e.target.value)}
+            style={{ padding: '0.6rem', borderRadius: '4px', border: '1px solid #ccc' }}
+          />
+          <input 
+            type="text" placeholder="Description (Optional)" 
+            value={desc} onChange={e=>setDesc(e.target.value)}
+            style={{ padding: '0.6rem', borderRadius: '4px', border: '1px solid #ccc' }}
+          />
+          <input 
+            id="fileInput"
+            type="file" accept="image/*" required 
+            onChange={e=>setFile(e.target.files[0])}
+          />
+          <button className="btn" type="submit" disabled={loading}>
+            {loading ? 'Uploading...' : 'Add Slide'}
+          </button>
         </form>
-        <div style={{marginTop: '10px'}}>
-        {carousel.map(c => (
-           <div key={c.id} style={{borderBottom:'1px solid #ccc', padding:'5px', display:'flex', gap:'10px', alignItems:'center'}}>
-              {c.image_dataurl && <img src={c.image_dataurl} width="50" />}
-              <span>{c.title}</span>
-              <button className="btn small danger" onClick={()=>handleCarouselDelete(c.id)}>Delete</button>
-              {/* ปุ่ม Save/Edit ย่อไว้ในตัวอย่างนี้เพื่อความกระชับ แต่ฟังก์ชันมีให้แล้วข้างบน */}
-           </div>
+      </div>
+
+      {/* Slides Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1.5rem' }}>
+        {slides.map(s => (
+          <div key={s.id} style={{ border: '1px solid #ddd', borderRadius: '8px', overflow: 'hidden', background: 'white' }}>
+            <div style={{ height: '150px', background: '#000' }}>
+              <img 
+                src={s.image_dataurl} 
+                alt="slide" 
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+              />
+            </div>
+            <div style={{ padding: '1rem' }}>
+              <h4 style={{ margin: '0 0 0.5rem 0' }}>{s.title}</h4>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: '#666' }}>{s.description || '-'}</p>
+              <button 
+                onClick={() => handleDelete(s.id)}
+                style={{ 
+                  marginTop: '1rem', width: '100%', padding: '0.5rem', 
+                  background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', 
+                  borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' 
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
         ))}
-        </div>
-      </section>
-      
-      {msg && <p style={{color:'red'}}>{msg}</p>}
-    </>
+      </div>
+    </div>
   );
 };
 
