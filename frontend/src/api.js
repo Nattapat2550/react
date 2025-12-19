@@ -11,4 +11,19 @@ const api = axios.create({
   withCredentials: true
 });
 
+// ✅ Interceptor: ฝั่ง Token ไปกับ Header ทุกครั้ง
+api.interceptors.request.use(
+  (config) => {
+    // ดึง Token จาก Local หรือ Session
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 export default api;

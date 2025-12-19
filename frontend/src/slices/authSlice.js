@@ -5,7 +5,7 @@ const initialState = {
   isAuthenticated: false,
   role: null,
   userId: null,
-  status: 'idle', // idle | loading | succeeded | failed
+  status: 'idle',
   error: null
 };
 
@@ -13,12 +13,12 @@ export const checkAuthStatus = createAsyncThunk(
   'auth/checkStatus',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await api.get('/api/auth/status');
-      return res.data;
+      // ✅ เรียก /api/auth/me
+      const res = await api.get('/api/auth/me');
+      // Rust ส่ง { ok: true, data: { ... } }
+      return res.data.data;
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.error || 'Failed to check auth status'
-      );
+      return rejectWithValue(err.response?.data?.error || 'Check auth failed');
     }
   }
 );
@@ -27,12 +27,18 @@ export const login = createAsyncThunk(
   'auth/login',
   async ({ email, password, remember }, { dispatch, rejectWithValue }) => {
     try {
-      await api.post('/api/auth/login', { email, password, remember });
-      const statusAction = await dispatch(checkAuthStatus());
-      if (checkAuthStatus.fulfilled.match(statusAction)) {
-        return statusAction.payload;
+      const res = await api.post('/api/auth/login', { email, password });
+      
+      // ✅ Rust ส่ง { ok: true, data: { token, user } }
+      const { token, user } = res.data.data;
+
+      if (remember) {
+        localStorage.setItem('token', token);
+      } else {
+        sessionStorage.setItem('token', token);
       }
-      return rejectWithValue('Failed to refresh auth status');
+
+      return user;
     } catch (err) {
       return rejectWithValue(
         err.response?.data?.error || 'Login failed'
@@ -46,12 +52,13 @@ export const logout = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       await api.post('/api/auth/logout');
-      return {};
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.error || 'Logout failed'
-      );
+      // ignore errors
+    } finally {
+      localStorage.removeItem('token');
+      sessionStorage.removeItem('token');
     }
+    return {};
   }
 );
 
@@ -65,46 +72,35 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // checkAuthStatus
-      .addCase(checkAuthStatus.pending, (state) => {
-        state.status = 'loading';
-        state.error = null;
-      })
       .addCase(checkAuthStatus.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        const { authenticated, role, id } = action.payload || {};
-        state.isAuthenticated = !!authenticated;
-        state.role = authenticated ? role : null;
-        state.userId = authenticated ? id : null;
+        const user = action.payload || {};
+        state.isAuthenticated = !!user.id;
+        state.role = user.id ? user.role : null;
+        state.userId = user.id || null;
       })
       .addCase(checkAuthStatus.rejected, (state, action) => {
         state.status = 'failed';
         state.isAuthenticated = false;
         state.role = null;
         state.userId = null;
-        state.error = action.payload || 'Failed to check auth status';
-      })
-      // login
-      .addCase(login.pending, (state) => {
-        state.status = 'loading';
-        state.error = null;
       })
       .addCase(login.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        const { authenticated, role, id } = action.payload || {};
-        state.isAuthenticated = !!authenticated;
-        state.role = authenticated ? role : null;
-        state.userId = authenticated ? id : null;
+        const user = action.payload || {};
+        state.isAuthenticated = !!user.id;
+        state.role = user.role || null;
+        state.userId = user.id || null;
       })
       .addCase(login.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload || 'Login failed';
       })
-      // logout
       .addCase(logout.fulfilled, (state) => {
         state.isAuthenticated = false;
         state.role = null;
         state.userId = null;
+        state.status = 'idle';
       });
   }
 });

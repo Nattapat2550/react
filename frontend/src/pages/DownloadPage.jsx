@@ -9,7 +9,8 @@ const DownloadPage = () => {
     const load = async () => {
       try {
         const res = await api.get('/api/download');
-        setItems(res.data || []);
+        // ✅ Rust ส่งกลับมาเป็น { ok: true, data: [...] }
+        setItems(res.data.data || []);
       } catch (err) {
         setMsg(err.response?.data?.error || 'Failed to load downloads');
       }
@@ -20,46 +21,14 @@ const DownloadPage = () => {
   return (
     <>
       <h2>Download</h2>
-      <p className="muted">
-        เลือกดาวน์โหลดเวอร์ชันที่คุณต้องการด้านล่าง
-      </p>
+      {msg && <p className="muted" style={{ color: 'red' }}>{msg}</p>}
 
-      {msg && (
-        <p className="muted" style={{ color: 'var(--acc-1)' }}>
-          {msg}
-        </p>
-      )}
-
-      <div
-        className="download-list"
-        style={{
-          display: 'grid',
-          gap: '1rem',
-          marginTop: '1rem'
-        }}
-      >
+      <div className="download-list" style={{ display: 'grid', gap: '1rem', marginTop: '1rem' }}>
         {items.map((d) => (
-          <div
-            key={d.id}
-            className="download-card"
-            style={{
-              padding: '1rem',
-              borderRadius: '0.5rem',
-              border: '1px solid var(--border, #ddd)'
-            }}
-          >
+          <div key={d.id} className="download-card" style={{ padding: '1rem', border: '1px solid #ddd' }}>
             <h3>{d.title || 'File'}</h3>
-            {d.description && (
-              <p className="muted">{d.description}</p>
-            )}
-            <a
-              href={d.file_url}
-              className="btn"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Download
-            </a>
+            {d.description && <p className="muted">{d.description}</p>}
+            <a href={d.file_url} className="btn" target="_blank" rel="noreferrer">Download</a>
           </div>
         ))}
       </div>

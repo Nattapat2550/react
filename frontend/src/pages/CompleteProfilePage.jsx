@@ -8,29 +8,28 @@ const CompleteProfilePage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [search] = useSearchParams();
-  const emailFromQuery = search.get('email') || '';
-
-  const [email, setEmail] = useState(emailFromQuery);
+  
+  const [email, setEmail] = useState(search.get('email') || sessionStorage.getItem('pendingEmail') || '');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [msg, setMsg] = useState(null);
-
-  useEffect(() => {
-    if (!emailFromQuery) {
-      const pending = sessionStorage.getItem('pendingEmail');
-      if (pending) setEmail(pending);
-    }
-  }, [emailFromQuery]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMsg(null);
     try {
-      await api.post('/api/auth/complete-profile', {
+      const res = await api.post('/api/auth/complete-profile', {
         email: email.trim(),
         username: username.trim(),
         password
       });
+
+      // ✅ รับ Token จาก Backend แล้ว Save เลย
+      const { token } = res.data.data;
+      if (token) {
+        localStorage.setItem('token', token);
+      }
+
       await dispatch(checkAuthStatus());
       navigate('/home', { replace: true });
     } catch (err) {
@@ -42,42 +41,12 @@ const CompleteProfilePage = () => {
     <section>
       <h2>Complete Profile</h2>
       <form onSubmit={handleSubmit}>
-        <div>
-          <label>
-            Email
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value.trim())}
-            />
-          </label>
-        </div>
-        <div>
-          <label>
-            Username
-            <input
-              type="text"
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value.trim())}
-            />
-          </label>
-        </div>
-        <div>
-          <label>
-            Password (min 8 chars)
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </label>
-        </div>
-        <button type="submit">Save</button>
+        <label>Email <input type="email" value={email} onChange={e=>setEmail(e.target.value)} required /></label>
+        <label>Username <input type="text" value={username} onChange={e=>setUsername(e.target.value)} required /></label>
+        <label>Password <input type="password" value={password} onChange={e=>setPassword(e.target.value)} required /></label>
+        <button type="submit">Save & Login</button>
       </form>
-      {msg && <p style={{ color: 'red' }}>{msg}</p>}
+      {msg && <p style={{color:'red'}}>{msg}</p>}
     </section>
   );
 };
