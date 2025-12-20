@@ -1,3 +1,4 @@
+// react/frontend/src/slices/authSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../api';
 
@@ -10,16 +11,17 @@ const initialState = {
   error: null
 };
 
-// ✅ แก้ไข 1: ใช้ endpoint /api/users/me (ไม่ใช่ /api/auth/me)
+// 1. [แก้ไข] เรียกไปที่ /api/users/me
 export const checkAuthStatus = createAsyncThunk(
   'auth/checkStatus',
   async (_, { rejectWithValue }) => {
     try {
       const res = await api.get('/api/users/me');
-      // ✅ แก้ไข 2: Backend Node.js ส่ง object user มาตรงๆ ไม่ได้ซ้อน data.data
+      // Backend (users.js) ส่ง JSON user object มาตรงๆ ไม่ได้ห่อ data.data
+      // ดังนั้นใช้ res.data ได้เลย
       return res.data; 
     } catch (err) {
-      // ถ้า 401/403 แปลว่ายังไม่ login ไม่ต้อง throw error แดง
+      // 401 Unauthorized คือเรื่องปกติของคนยังไม่ล็อกอิน
       return rejectWithValue(null);
     }
   }
@@ -31,8 +33,12 @@ export const login = createAsyncThunk(
     try {
       const res = await api.post('/api/auth/login', { email, password });
       
-      // ✅ แก้ไข 3: รับ token และ user จาก root object
-      const { token, user } = res.data;
+      // ตรวจสอบว่า Backend ส่งอะไรกลับมา (auth.js ในเวอร์ชันล่าสุดน่าจะส่ง plain JSON)
+      // ถ้า auth.js ส่ง { token, user, role }
+      const data = res.data; 
+      
+      // กรณีถ้า Backend ห่อด้วย data (เช่น res.json({data: ...})) ให้ใช้ data.data
+      const { token, user } = data.data || data; 
 
       if (remember) {
         localStorage.setItem('token', token);
@@ -47,14 +53,14 @@ export const login = createAsyncThunk(
   }
 );
 
+// ... (Logout ยังคงเดิม)
 export const logout = createAsyncThunk(
   'auth/logout',
   async (_, { rejectWithValue }) => {
     try {
       await api.post('/api/auth/logout');
-    } catch (err) {
-      // ignore
-    } finally {
+    } catch (err) { } 
+    finally {
       localStorage.removeItem('token');
       sessionStorage.removeItem('token');
     }
@@ -87,7 +93,7 @@ const authSlice = createSlice({
         }
       })
       .addCase(checkAuthStatus.rejected, (state) => {
-        state.status = 'failed';
+        state.status = 'idle'; // เปลี่ยนเป็น idle เพื่อไม่ให้ loading ค้าง
         state.isAuthenticated = false;
         state.user = null;
       })
