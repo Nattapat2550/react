@@ -20,7 +20,7 @@ const API_BASE_URL = normalizeBaseUrl(
   envBase ||
     (isLocal
       ? `${window.location.protocol}//${window.location.hostname}:5000`
-      : 'https://backendlogins.onrender.com') // fallback ให้เหมือน docker
+      : 'https://react1-k4e2.onrender.com') // fallback ให้เหมือน docker
 );
 
 const api = axios.create({
