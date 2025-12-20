@@ -123,3 +123,4 @@ router.delete('/carousel/:id', authenticateJWT, isAdmin, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.default = router;

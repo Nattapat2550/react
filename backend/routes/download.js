@@ -50,3 +50,4 @@ router.get('/android', (req, res) => {
 });
 
 module.exports = router;
+module.exports.default = router;
