@@ -1,10 +1,12 @@
 import React from 'react';
 
-const AboutPage = () => (
-  <section>
-    <h2>About</h2>
-    <p>This is the about page of your React system.</p>
-  </section>
-);
+const AboutPage = () => {
+  return (
+    <>
+      <h1>About</h1>
+      <p>This is a public landing page. Simple full-stack app with email & Google authentication.</p>
+    </>
+  );
+};
 
 export default AboutPage;

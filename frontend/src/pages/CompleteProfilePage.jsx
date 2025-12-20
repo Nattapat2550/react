@@ -1,74 +1,58 @@
-import React, { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api';
 
 const CompleteProfilePage = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const query = new URLSearchParams(location.search);
-  const emailParam = query.get('email') || '';
-
-  const [email] = useState(emailParam);
+  const [sp] = useSearchParams();
+  const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState(null);
+  const [msg, setMsg] = useState('');
 
-  const handleSubmit = async (e) => {
+  useEffect(() => {
+    const e = sp.get('email') || '';
+    setEmail(e);
+  }, [sp]);
+
+  const onSubmit = async (e) => {
     e.preventDefault();
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
+    setMsg('');
+
     try {
-      await api.post('/api/auth/complete-profile', { email, username, password });
-      // ล็อกอินสำเร็จ -> ไปหน้า Home
+      const res = await api.post('/api/auth/complete-profile', {
+        email: email.trim(),
+        username: username.trim(),
+        password,
+      });
+
+      // ✅ เหมือน docker: เก็บ token แล้วไป home
+      if (res.data?.token) {
+        localStorage.setItem('token', res.data.token);
+      }
       navigate('/home');
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to complete profile');
+      setMsg(err.response?.data?.error || 'Save failed');
     }
   };
 
   return (
-    <div>
-      <h2>Complete Profile</h2>
-      <p className="muted">Please set your username and password to continue.</p>
-      
-      <form onSubmit={handleSubmit} className="card" style={{ maxWidth: '400px', margin: '0 auto' }}>
+    <>
+      <h2>Set username & password</h2>
+      <form id="profileForm" onSubmit={onSubmit}>
         <label>Email</label>
-        <input type="email" value={email} disabled style={{ backgroundColor: '#f0f0f0' }} />
+        <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
 
         <label>Username</label>
-        <input 
-          type="text" 
-          required 
-          autoComplete="username"
-          value={username} 
-          onChange={(e) => setUsername(e.target.value)} 
-        />
+        <input type="text" minLength={3} required value={username} onChange={(e) => setUsername(e.target.value)} />
 
         <label>Password</label>
-        <input 
-          type="password" 
-          required 
-          autoComplete="new-password"
-          value={password} 
-          onChange={(e) => setPassword(e.target.value)} 
-        />
+        <input type="password" minLength={8} required value={password} onChange={(e) => setPassword(e.target.value)} />
 
-        <label>Confirm Password</label>
-        <input 
-          type="password" 
-          required 
-          autoComplete="new-password"
-          value={confirmPassword} 
-          onChange={(e) => setConfirmPassword(e.target.value)} 
-        />
-
-        <button type="submit" className="btn" style={{ marginTop: '1rem' }}>Save & Login</button>
-        {error && <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>}
+        <button className="btn" type="submit">Save</button>
       </form>
-    </div>
+      <p className="muted">{msg}</p>
+    </>
   );
 };
 

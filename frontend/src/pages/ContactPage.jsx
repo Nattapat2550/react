@@ -1,10 +1,12 @@
 import React from 'react';
 
-const ContactPage = () => (
-  <section>
-    <h2>Contact</h2>
-    <p>You can put your contact information here.</p>
-  </section>
-);
+const ContactPage = () => {
+  return (
+    <>
+      <h1>Contact</h1>
+      <p>This is a public landing page. Email us any time.</p>
+    </>
+  );
+};
 
 export default ContactPage;

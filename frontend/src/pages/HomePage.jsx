@@ -1,115 +1,150 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import api from '../api';
+
+function normalizeCarousel(items) {
+  const arr = Array.isArray(items) ? items : (items?.data || items?.items || []);
+  return (arr || [])
+    .map((it) => ({
+      id: it.id,
+      item_index: it.item_index ?? it.itemIndex ?? 0,
+      image_dataurl: it.image_dataurl ?? it.imageDataUrl ?? '',
+      title: it.title || '',
+      subtitle: it.subtitle || '',
+      description: it.description || '',
+    }))
+    .sort((a, b) => (a.item_index || 0) - (b.item_index || 0));
+}
+
+function pickHomepage(contentArray) {
+  const m = new Map();
+  (contentArray || []).forEach((r) => m.set(r.section_name, r.content));
+  return {
+    welcome_title: m.get('welcome_title') || 'Welcome!',
+    main_paragraph: m.get('main_paragraph') || 'This is your protected homepage.',
+  };
+}
 
 const HomePage = () => {
   const [slides, setSlides] = useState([]);
-  const [current, setCurrent] = useState(0);
-  const timeoutRef = useRef(null);
+  const [home, setHome] = useState({ welcome_title: 'Welcome!', main_paragraph: 'This is your protected homepage.' });
+  const [idx, setIdx] = useState(0);
+  const [err, setErr] = useState('');
+  const touch = useRef({ startX: 0, moved: false });
 
-  // 1. Fetch Carousel Data
   useEffect(() => {
-    const fetchSlides = async () => {
+    let cancelled = false;
+
+    async function load() {
+      setErr('');
       try {
-        const res = await api.get('/api/carousel');
-        if (res.data.ok && res.data.data.length > 0) {
-          setSlides(res.data.data);
-        } else {
-          // Fallback ถ้าไม่มีข้อมูลใน DB
-          setSlides([
-             { 
-               id: 999, 
-               image_dataurl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&q=80', 
-               title: 'Welcome to MyApp',
-               description: 'Secure & Fast Platform'
-             }
-          ]);
+        const [cRes, hRes] = await Promise.all([
+          api.get('/api/carousel'),
+          api.get('/api/homepage'),
+        ]);
+
+        const c = normalizeCarousel(cRes.data);
+        const h = pickHomepage(hRes.data);
+
+        if (!cancelled) {
+          setSlides(c);
+          setHome(h);
+          setIdx(0);
         }
-      } catch (err) {
-        console.error("Load carousel failed", err);
+      } catch (e) {
+        if (!cancelled) setErr(e.response?.data?.error || 'Failed to load homepage');
       }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
     };
-    fetchSlides();
   }, []);
 
-  // 2. Auto Slide Logic
-  useEffect(() => {
-    resetTimeout();
-    timeoutRef.current = setTimeout(() => {
-      setCurrent((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
-    }, 4000); // เปลี่ยนทุก 4 วินาที
+  const current = useMemo(() => slides[idx] || null, [slides, idx]);
 
-    return () => resetTimeout();
-  }, [current, slides.length]);
-
-  const resetTimeout = () => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+  const prev = () => {
+    if (!slides.length) return;
+    setIdx((i) => (i - 1 + slides.length) % slides.length);
+  };
+  const next = () => {
+    if (!slides.length) return;
+    setIdx((i) => (i + 1) % slides.length);
   };
 
   return (
-    <div className="home-container">
-      {/* Hero / Carousel Section */}
-      <div className="carousel-container" style={{ position: 'relative', overflow: 'hidden', height: '400px', borderRadius: '12px', marginBottom: '2rem', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-        
-        {slides.length > 0 ? (
-          <div 
+    <>
+      <h1>Home</h1>
+      {err ? <p className="muted">{err}</p> : null}
+
+      <div className="carousel">
+        <button className="carousel-btn prev" type="button" onClick={prev}>⟨</button>
+
+        <div
+          className="carousel-viewport"
+          onTouchStart={(e) => {
+            touch.current.startX = e.touches[0].clientX;
+            touch.current.moved = false;
+          }}
+          onTouchMove={(e) => {
+            const dx = e.touches[0].clientX - touch.current.startX;
+            if (Math.abs(dx) > 25) touch.current.moved = true;
+          }}
+          onTouchEnd={(e) => {
+            const endX = e.changedTouches[0].clientX;
+            const dx = endX - touch.current.startX;
+            if (!touch.current.moved) return;
+            if (dx > 30) prev();
+            if (dx < -30) next();
+          }}
+        >
+          <div
             className="carousel-track"
             style={{
-              display: 'flex',
-              transform: `translateX(-${current * 100}%)`,
-              transition: 'transform 0.5s ease-in-out',
-              height: '100%'
+              transform: `translateX(${-idx * 100}%)`,
+              width: `${Math.max(slides.length, 1) * 100}%`,
             }}
           >
-            {slides.map((slide, idx) => (
-              <div key={idx} style={{ minWidth: '100%', position: 'relative' }}>
-                <img 
-                  src={slide.image_dataurl} 
-                  alt={slide.title} 
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                />
-                <div style={{
-                  position: 'absolute', bottom: '30px', left: '30px',
-                  background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '15px 25px', borderRadius: '8px',
-                  backdropFilter: 'blur(4px)'
-                }}>
-                  <h2 style={{ margin: '0 0 5px 0', fontSize: '1.5rem' }}>{slide.title}</h2>
-                  {slide.description && <p style={{ margin: 0, opacity: 0.9 }}>{slide.description}</p>}
-                </div>
+            {(slides.length ? slides : [{ id: 'empty', image_dataurl: '' }]).map((it) => (
+              <div className="carousel-slide" key={it.id}>
+                {it.image_dataurl ? (
+                  <img src={it.image_dataurl} alt={it.title || 'slide'} />
+                ) : (
+                  <div className="carousel-empty">No slides</div>
+                )}
               </div>
             ))}
           </div>
-        ) : (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', background: '#eee' }}>
-            Loading...
-          </div>
-        )}
-
-        {/* Indicators */}
-        <div style={{ position: 'absolute', bottom: '15px', width: '100%', textAlign: 'center', zIndex: 10 }}>
-          {slides.map((_, idx) => (
-            <span 
-              key={idx}
-              onClick={() => setCurrent(idx)}
-              style={{
-                display: 'inline-block',
-                width: '10px', height: '10px',
-                borderRadius: '50%',
-                background: current === idx ? '#fff' : 'rgba(255,255,255,0.4)',
-                margin: '0 6px', cursor: 'pointer',
-                transition: 'background 0.3s'
-              }}
-            />
-          ))}
         </div>
+
+        <button className="carousel-btn next" type="button" onClick={next}>⟩</button>
       </div>
 
-      <div style={{ textAlign: 'center', marginTop: '3rem' }}>
-        <h1>Ready to get started?</h1>
-        <p style={{ color: '#666', marginBottom: '1.5rem' }}>Download our application to experience the full features.</p>
-        <Link to="/download" className="btn" style={{ padding: '0.8rem 2rem', fontSize: '1.1rem' }}>Download App</Link>
+      <div className="thumbs">
+        {slides.map((it, i) => (
+          <button
+            key={it.id}
+            type="button"
+            className={'thumb' + (i === idx ? ' active' : '')}
+            onClick={() => setIdx(i)}
+            title={it.title || `Slide ${i + 1}`}
+          >
+            <img src={it.image_dataurl} alt="" />
+          </button>
+        ))}
       </div>
-    </div>
+
+      <section className="card caption">
+        <h2>{current?.title || ''}</h2>
+        <h3 className="muted">{current?.subtitle || ''}</h3>
+        <p>{current?.description || ''}</p>
+      </section>
+
+      <section className="card">
+        <h2>{home.welcome_title}</h2>
+        <p>{home.main_paragraph}</p>
+      </section>
+    </>
   );
 };
 

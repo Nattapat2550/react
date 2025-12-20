@@ -204,3 +204,7 @@ a:not(.btn):not(.brand):hover::after{ right:0; }
    ========================================================= */
 .actions{ display:flex; gap:.7rem; flex-wrap:wrap; }
 hr{ border:0; height:1px; background: color-mix(in oklab, #000 6%, transparent); margin:1.2rem 0; }
+.page-loading{
+  padding: 18px;
+  color: var(--muted);
+}

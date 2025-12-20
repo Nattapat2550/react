@@ -1,49 +1,141 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
-import { useNavigate } from 'react-router-dom';
 
 const SettingsPage = () => {
+  const [me, setMe] = useState(null);
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState('');
-  const navigate = useNavigate();
+  const [msg, setMsg] = useState('');
+  const [avatarFile, setAvatarFile] = useState(null);
 
   useEffect(() => {
-    const loadMe = async () => {
+    let cancelled = false;
+    (async () => {
       try {
-        const res = await api.get('/api/auth/me');
-        const user = res.data.data;
-        setUsername(user.username || '');
-        setEmail(user.email || '');
-        setAvatarUrl(user.profile_picture_url || '');
-      } catch {
-        navigate('/');
+        const res = await api.get('/api/users/me');
+        if (cancelled) return;
+        setMe(res.data);
+        setUsername(res.data?.username || '');
+      } catch (e) {
+        if (!cancelled) setMsg('Failed to load profile');
       }
-    };
-    loadMe();
-  }, [navigate]);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const saveProfile = async (e) => {
+    e.preventDefault();
+    setMsg('');
+    try {
+      const res = await api.put('/api/users/me', { username: username.trim() });
+      setMe(res.data);
+      setMsg('Saved.');
+    } catch (e) {
+      setMsg(e.response?.data?.error || 'Save failed');
+    }
+  };
+
+  const uploadAvatar = async (e) => {
+    e.preventDefault();
+    setMsg('');
+    if (!avatarFile) {
+      setMsg('Please choose an image file.');
+      return;
+    }
+
+    try {
+      const fd = new FormData();
+      fd.append('avatar', avatarFile);
+
+      const res = await fetch(`${api.defaults.baseURL}/api/users/me/avatar`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: (() => {
+          const t = localStorage.getItem('token') || sessionStorage.getItem('token');
+          return t ? { Authorization: `Bearer ${t}` } : undefined;
+        })(),
+        body: fd,
+      });
+
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(j.error || 'Upload failed');
+      }
+
+      const j = await res.json();
+      setMe((m) => ({ ...(m || {}), profile_picture_url: j.profile_picture_url }));
+      setMsg('Avatar updated.');
+      setAvatarFile(null);
+      e.target.reset();
+    } catch (err) {
+      setMsg(err.message || 'Upload failed');
+    }
+  };
+
+  const deleteMe = async () => {
+    if (!confirm('Delete account? This cannot be undone.')) return;
+    setMsg('');
+    try {
+      await api.delete('/api/users/me');
+      localStorage.removeItem('token');
+      sessionStorage.removeItem('token');
+      window.location.href = '/';
+    } catch (e) {
+      setMsg(e.response?.data?.error || 'Delete failed');
+    }
+  };
 
   return (
     <>
-      <h2>Settings</h2>
-      
-      {avatarUrl && (
-         <img src={avatarUrl} alt="Avatar" style={{width:80, height:80, borderRadius:'50%', marginBottom:'1rem', objectFit:'cover'}} />
-      )}
+      <h1>Settings</h1>
+      <p className="muted">Update your profile and preferences.</p>
 
-      <div>
-        <label>Email (Read only)</label>
-        <input type="text" value={email} disabled />
-      </div>
+      <section className="card">
+        <h2>Profile</h2>
 
-      <div>
-        <label>Username (Read only)</label>
-        <input type="text" value={username} disabled />
-      </div>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+          <img
+            src={me?.profile_picture_url || '/images/user.png'}
+            alt="avatar"
+            style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover' }}
+          />
+          <div>
+            <div><b>{me?.email || ''}</b></div>
+            <div className="muted">Role: {me?.role || 'user'}</div>
+          </div>
+        </div>
 
-      <div style={{marginTop: '2rem', padding: '1rem', background: '#f8d7da', color: '#721c24', borderRadius: '5px'}}>
-        <strong>Note:</strong> Editing profile is disabled because the backend server does not support it yet.
-      </div>
+        <form onSubmit={saveProfile} style={{ marginTop: 16 }}>
+          <label>Username</label>
+          <input
+            type="text"
+            minLength={3}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+          <button className="btn" type="submit">Save</button>
+        </form>
+      </section>
+
+      <section className="card">
+        <h2>Avatar Upload</h2>
+        <form onSubmit={uploadAvatar}>
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+            onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
+          />
+          <button className="btn" type="submit">Upload</button>
+        </form>
+      </section>
+
+      <section className="card">
+        <h2>Danger Zone</h2>
+        <button className="btn danger" type="button" onClick={deleteMe}>
+          Delete Account
+        </button>
+      </section>
+
+      <p className="muted" id="msg">{msg}</p>
     </>
   );
 };

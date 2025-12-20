@@ -1,56 +1,48 @@
-import React, { useEffect, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 
 const CheckCodePage = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const pendingEmail = useMemo(() => sessionStorage.getItem('pendingEmail'), []);
   const [code, setCode] = useState('');
-  const [msg, setMsg] = useState(null);
+  const [msg, setMsg] = useState('');
 
-  useEffect(() => {
-    const pending = sessionStorage.getItem('pendingEmail');
-    if (!pending) {
-      navigate('/register', { replace: true });
-      return;
-    }
-    setEmail(pending);
-  }, [navigate]);
+  if (!pendingEmail) {
+    // เหมือน docker: ถ้าไม่มี pendingEmail ให้กลับ register
+    navigate('/register', { replace: true });
+  }
 
-  const handleSubmit = async (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
-    setMsg(null);
+    setMsg('');
     try {
       await api.post('/api/auth/verify-code', {
-        email,
-        code: code.trim()
+        email: pendingEmail,
+        code: code.trim(),
       });
-      navigate(`/form?email=${encodeURIComponent(email)}`);
+      navigate(`/form?email=${encodeURIComponent(pendingEmail)}`);
     } catch (err) {
-      setMsg(err.response?.data?.error || 'Invalid code');
+      setMsg(err.response?.data?.error || 'Invalid or expired code');
     }
   };
 
   return (
-    <section>
-      <h2>Verify Code</h2>
-      <p>We sent a verification code to {email}</p>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>
-            Code
-            <input
-              type="text"
-              required
-              value={code}
-              onChange={(e) => setCode(e.target.value.trim())}
-            />
-          </label>
-        </div>
-        <button type="submit">Verify</button>
+    <>
+      <h2>Enter 6-digit code</h2>
+      <form id="codeForm" onSubmit={onSubmit}>
+        <label>Code</label>
+        <input
+          type="text"
+          maxLength={6}
+          required
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+        />
+        <button className="btn" type="submit">Verify</button>
       </form>
-      {msg && <p style={{ color: 'red' }}>{msg}</p>}
-    </section>
+      <p className="muted">{msg}</p>
+    </>
   );
 };
 

@@ -1,11 +1,10 @@
-// src/App.jsx
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
+import GuestRoute from './components/GuestRoute';
 
-// ✅ lazy-load ทุกหน้าที่เป็น page เพื่อลดขนาด main bundle
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
@@ -22,20 +21,22 @@ const DownloadPage = lazy(() => import('./pages/DownloadPage'));
 const App = () => {
   return (
     <Layout>
-      {/* Suspense ไว้ครอบ routing ทั้งหมด ให้ fallback ตอนโหลด chunk */}
       <Suspense fallback={<div className="page-loading">กำลังโหลด...</div>}>
         <Routes>
-          {/* Public routes */}
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/check" element={<CheckCodePage />} />
-          <Route path="/form" element={<CompleteProfilePage />} />
-          <Route path="/reset" element={<ResetPasswordPage />} />
+          {/* Guest-only (เหมือน docker guard) */}
+          <Route path="/" element={<GuestRoute><LandingPage /></GuestRoute>} />
+          <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
+          <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
+          <Route path="/check" element={<GuestRoute><CheckCodePage /></GuestRoute>} />
+          <Route path="/form" element={<GuestRoute><CompleteProfilePage /></GuestRoute>} />
+          <Route path="/reset" element={<GuestRoute><ResetPasswordPage /></GuestRoute>} />
+
+          {/* Shared pages (ไม่ต้องล็อกอิน เหมือน docker: about/contact/download) */}
           <Route path="/about" element={<AboutPage />} />
           <Route path="/contact" element={<ContactPage />} />
+          <Route path="/download" element={<DownloadPage />} />
 
-          {/* Protected routes – ต้องล็อกอินก่อน */}
+          {/* Protected */}
           <Route
             path="/home"
             element={
@@ -44,7 +45,6 @@ const App = () => {
               </ProtectedRoute>
             }
           />
-
           <Route
             path="/settings"
             element={
@@ -54,16 +54,7 @@ const App = () => {
             }
           />
 
-          <Route
-            path="/download"
-            element={
-              <ProtectedRoute>
-                <DownloadPage />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* เฉพาะ role admin */}
+          {/* Admin only */}
           <Route
             path="/admin"
             element={
@@ -73,7 +64,6 @@ const App = () => {
             }
           />
 
-          {/* route ไม่เจอ → กลับหน้าแรก */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

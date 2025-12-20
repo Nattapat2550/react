@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../slices/authSlice';
 import api from '../api';
@@ -7,15 +7,15 @@ import api from '../api';
 const Layout = ({ children }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const { isAuthenticated, role } = useSelector((s) => s.auth);
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [dark, setDark] = useState(false);
   const [me, setMe] = useState(null);
+  const menuRef = useRef(null);
 
-  // โหลดข้อมูล user สำหรับแสดงชื่อ + avatar (เฉพาะตอน login)
+  // โหลดข้อมูล user สำหรับแสดงชื่อ + avatar
   useEffect(() => {
     let cancelled = false;
     const loadMe = async () => {
@@ -36,10 +36,9 @@ const Layout = ({ children }) => {
     };
   }, [isAuthenticated]);
 
-  // จัดการ Theme (Dark/Light)
+  // theme
   useEffect(() => {
-    const saved = localStorage.getItem('theme') === 'dark';
-    setDark(saved);
+    setDark(localStorage.getItem('theme') === 'dark');
   }, []);
 
   useEffect(() => {
@@ -47,9 +46,17 @@ const Layout = ({ children }) => {
     localStorage.setItem('theme', dark ? 'dark' : 'light');
   }, [dark]);
 
-  const handleThemeToggle = () => {
-    setDark((prev) => !prev);
-  };
+  // ✅ คลิกนอกเมนูให้ปิด (เหมือน docker)
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (!menuRef.current) return;
+      if (!menuRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -60,80 +67,65 @@ const Layout = ({ children }) => {
     }
   };
 
-  const showDownloadLink = true; // แสดงลิงก์ Download เสมอ
-
   const userDisplayName = me?.username || me?.email || 'User';
 
   return (
     <div>
-      {/* Top Nav */}
       <nav className="nav">
-        {/* ส่วนโลโก้: ใส่ className="brand" ที่ Link โดยตรงเพื่อให้สีรุ้งทำงาน */}
         <Link to="/" className="brand">
           MySite
         </Link>
 
         <div className="links">
-          {/* ลิงก์เมนูหลัก */}
-          {/* ใช้ NavLink เพื่อให้ React Router จัดการ active state ได้ถ้าต้องการ */}
           <NavLink to="/about">About</NavLink>
           <NavLink to="/contact">Contact</NavLink>
-          {showDownloadLink && (
-            <NavLink to="/download">Download</NavLink>
-          )}
+          <NavLink to="/download">Download</NavLink>
 
-          {/* ปุ่มสลับธีม */}
           <button
             id="themeToggle"
             type="button"
-            onClick={handleThemeToggle}
+            onClick={() => setDark((p) => !p)}
             title="Toggle Theme"
           >
-            {dark ? '🌙' : '☀️'}
+            🌓
           </button>
 
-          {/* User Menu (แสดงเมื่อ Login แล้ว) */}
           {isAuthenticated && (
             <div
+              ref={menuRef}
               className={'user-menu' + (dropdownOpen ? ' open' : '')}
+              onClick={() => setDropdownOpen((o) => !o)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') setDropdownOpen((o) => !o);
+              }}
             >
               <img
                 src={me?.profile_picture_url || '/images/user.png'}
                 alt="avatar"
-                onClick={() => setDropdownOpen((o) => !o)}
               />
-              <span onClick={() => setDropdownOpen((o) => !o)}>
-                {userDisplayName}
-              </span>
-              
-              <div className="dropdown">
+              <span>{userDisplayName}</span>
+
+              <div className="dropdown" onClick={(e) => e.stopPropagation()}>
                 <Link to="/settings" onClick={() => setDropdownOpen(false)}>
                   Settings
                 </Link>
-                {role === 'admin' && (
+                {(role || '').toLowerCase() === 'admin' && (
                   <Link to="/admin" onClick={() => setDropdownOpen(false)}>
                     Admin
                   </Link>
                 )}
-                <button
-                  type="button"
-                  className="linklike"
-                  onClick={handleLogout}
-                >
+                <button type="button" className="linklike" onClick={handleLogout}>
                   Logout
                 </button>
               </div>
             </div>
           )}
-
-          {/* ถ้ายังไม่ Login ปุ่ม Login/Register จะอยู่ที่หน้า Landing/Login เอง */}
         </div>
       </nav>
 
-      {/* Main Content */}
-      <main className="container">
-        {children}
-      </main>
+      <main className="container">{children}</main>
     </div>
   );
 };

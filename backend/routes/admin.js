@@ -1,79 +1,124 @@
-// react/backend/routes/admin.js
 const express = require('express');
+const { authenticateJWT, isAdmin } = require('../middleware/auth');
+const { callPureApi } = require('../utils/pureApi');
+const multer = require('multer');
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 4 * 1024 * 1024 },
+});
+
 const router = express.Router();
-const jwt = require('jsonwebtoken');
 
-// เรียกใช้ getAllUsers จาก model
-const { adminUpdateUser, getAllUsers } = require('../models/user');
+// -------------------- Users --------------------
+router.get('/users', authenticateJWT, isAdmin, async (_req, res) => {
+  const users = await callPureApi('/admin/users', 'GET');
+  res.json(users || []);
+});
 
-function requireAdmin(req, res, next) {
+router.put('/users/:id', authenticateJWT, isAdmin, async (req, res) => {
+  const { id } = req.params;
+  const body = req.body || {};
+
+  const updated = await callPureApi('/admin/users/update', 'POST', { id, ...body });
+
+  if (!updated) return res.status(404).json({ error: 'Update failed or Not found' });
+  if (updated.error) return res.status(400).json(updated);
+
+  res.json(updated);
+});
+
+// -------------------- Carousel --------------------
+const {
+  createCarouselItem, updateCarouselItem, deleteCarouselItem, listCarouselItems
+} = require('../models/carousel');
+
+router.get('/carousel', authenticateJWT, isAdmin, async (_req, res) => {
+  const items = await listCarouselItems();
+  res.json(items || []);
+});
+
+router.post('/carousel', authenticateJWT, isAdmin, upload.single('image'), async (req, res) => {
   try {
-    const token =
-      req.cookies?.token ||
-      (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    const body = req.body || {};
+    const { title, subtitle, description } = body;
 
-    if (!token) {
-      return res.status(401).json({ error: true, message: 'No token' });
+    const itemIndexRaw = (body.itemIndex !== undefined ? body.itemIndex : body.item_index);
+    const itemIndex = (itemIndexRaw !== undefined && itemIndexRaw !== '')
+      ? Number(itemIndexRaw)
+      : 0;
+
+    if (!req.file) return res.status(400).json({ error: 'Image required' });
+
+    const mime = req.file.mimetype;
+    if (!/^image\/(png|jpe?g|gif|webp)$/.test(mime)) {
+      return res.status(400).json({ error: 'Unsupported image type' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (!decoded || !decoded.is_admin && decoded.role !== 'admin') { // เช็คทั้ง is_admin และ role
-      return res.status(403).json({ error: true, message: 'Admin only' });
-    }
+    const b64 = req.file.buffer.toString('base64');
+    const dataUrl = `data:${mime};base64,${b64}`;
 
-    req.user = decoded;
-    return next();
-  } catch (err) {
-    err.status = 401;
-    return next(err);
-  }
-}
-
-// 1. [เพิ่ม] Route สำหรับดึงข้อมูล Users ทั้งหมด
-router.get('/users', requireAdmin, async (req, res, next) => {
-  try {
-    // ดึงข้อมูลจาก Pure API ผ่าน Model
-    const users = await getAllUsers();
-    
-    // ส่งกลับในรูปแบบที่ Frontend (AdminPage.jsx) ต้องการ
-    // Frontend คาดหวัง: res.data.data.users
-    res.json({
-      ok: true,
-      data: {
-        users: users || [],
-        total_pages: 1 // Pure API อาจจะยังไม่ทำ pagination ส่ง 1 ไปก่อน
-      }
+    const created = await createCarouselItem({
+      itemIndex,
+      title,
+      subtitle,
+      description,
+      imageDataUrl: dataUrl,
     });
-  } catch (err) {
-    next(err);
+
+    if (!created) return res.status(500).json({ error: 'Create failed' });
+    res.status(201).json(created);
+  } catch (e) {
+    console.error('admin create carousel error', e);
+    res.status(500).json({ error: 'Internal error' });
   }
 });
 
-// 2. Route สำหรับอัปเดต User
-router.post('/users/update', requireAdmin, async (req, res, next) => {
+router.put('/carousel/:id', authenticateJWT, isAdmin, upload.single('image'), async (req, res) => {
   try {
-    const { id, ...payload } = req.body || {};
-    if (!id) {
-      return res.status(400).json({ error: true, message: 'Missing user id' });
+    const id = Number(req.params.id);
+    const body = req.body || {};
+    const { title, subtitle, description } = body;
+
+    const itemIndexRaw = (body.itemIndex !== undefined ? body.itemIndex : body.item_index);
+    const itemIndex = (itemIndexRaw !== undefined && itemIndexRaw !== '')
+      ? Number(itemIndexRaw)
+      : undefined;
+
+    let imageDataUrl = undefined;
+    if (req.file) {
+      const mime = req.file.mimetype;
+      if (!/^image\/(png|jpe?g|gif|webp)$/.test(mime)) {
+        return res.status(400).json({ error: 'Unsupported image type' });
+      }
+      const b64 = req.file.buffer.toString('base64');
+      imageDataUrl = `data:${mime};base64,${b64}`;
     }
 
-    const updated = await adminUpdateUser(id, payload);
-    // ส่งกลับรูปแบบเดียวกับ GET เพื่อความสม่ำเสมอ
-    res.json({ ok: true, data: updated });
-  } catch (err) {
-    next(err);
+    const updated = await updateCarouselItem(id, {
+      itemIndex,
+      title,
+      subtitle,
+      description,
+      imageDataUrl,
+    });
+
+    if (!updated) return res.status(404).json({ error: 'Not found or Update failed' });
+    res.json(updated);
+  } catch (e) {
+    console.error('admin update carousel error', e);
+    res.status(500).json({ error: 'Internal error' });
   }
 });
 
-// รองรับ PATCH ด้วย (AdminPage.jsx เรียกใช้ patch)
-router.patch('/users/:id', requireAdmin, async (req, res, next) => {
+router.delete('/carousel/:id', authenticateJWT, isAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
-    const payload = req.body;
-    const updated = await adminUpdateUser(id, payload);
-    res.json({ ok: true, data: updated });
-  } catch (err) {
-    next(err);
+    const id = Number(req.params.id);
+    await deleteCarouselItem(id);
+    res.status(204).end();
+  } catch (e) {
+    console.error('admin delete carousel error', e);
+    res.status(500).json({ error: 'Internal error' });
   }
 });
 

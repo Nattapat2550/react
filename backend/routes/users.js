@@ -1,61 +1,59 @@
-// react/backend/routes/users.js
-const express = require('express');
-const { authenticateJWT, clearAuthCookie } = require('../middleware/auth');
-const { updateProfile, deleteUser, findUserById } = require('../models/user');
-const multer = require('multer');
-const upload = multer({ limits: { fileSize: 2 * 1024 * 1024 } }); // 2MB
+const { callPureApi } = require('../utils/pureApi');
 
-const router = express.Router();
-
-router.get('/me', authenticateJWT, async (req, res) => {
-  const u = await findUserById(req.user.id);
-  if (!u) return res.status(404).json({ error: 'Not found' });
-  const { id, username, email, role, profile_picture_url } = u;
-  res.json({ id, username, email, role, profile_picture_url });
-});
-
-router.put('/me', authenticateJWT, async (req, res) => {
-  try {
-    const { username, profilePictureUrl } = req.body || {};
-    const updated = await updateProfile(req.user.id, { username, profilePictureUrl });
-    if (!updated) return res.status(404).json({ error: 'Not found' });
-    const { id, email, role, profile_picture_url } = updated;
-    res.json({ id, username: updated.username, email, role, profile_picture_url });
-  } catch (e) {
-    if (e.code === '23505') {
-      return res.status(409).json({ error: 'Username already taken' });
-    }
-    console.error('update profile error', e);
-    res.status(500).json({ error: 'Internal error' });
+async function createUserByEmail(email) {
+  return await callPureApi('/create-user-email', { email });
+}
+async function findUserByEmail(email) {
+  return await callPureApi('/find-user', { email });
+}
+async function findUserById(id) {
+  return await callPureApi('/find-user', { id });
+}
+async function findUserByOAuth(provider, oauthId) {
+  return await callPureApi('/find-user', { provider, oauthId });
+}
+async function markEmailVerified(_userId) {
+  return null;
+}
+async function setUsernameAndPassword(email, username, password) {
+  return await callPureApi('/set-username-password', { email, username, password });
+}
+async function updateProfile(userId, { username, profilePictureUrl }) {
+  return await callPureApi('/admin/users/update', { id: userId, username, profile_picture_url: profilePictureUrl });
+}
+async function deleteUser(_userId) {
+  console.warn('deleteUser not fully implemented via Pure-API yet');
+  return null;
+}
+async function getAllUsers() {
+  return await callPureApi('/admin/users') || [];
+}
+async function storeVerificationCode(userId, code, expiresAt) {
+  return await callPureApi('/store-verification-code', { userId, code, expiresAt });
+}
+async function validateAndConsumeCode(email, code) {
+  const result = await callPureApi('/verify-code', { email, code });
+  if (!result || (result.ok === false)) {
+    return { ok: false, reason: result?.reason || 'error' };
   }
-});
+  return { ok: true, userId: result.userId || result.data?.userId };
+}
+async function setOAuthUser(data) {
+  return await callPureApi('/set-oauth-user', data);
+}
+async function createPasswordResetToken(email, token, expiresAt) {
+  return await callPureApi('/create-reset-token', { email, token, expiresAt });
+}
+async function consumePasswordResetToken(rawToken) {
+  return await callPureApi('/consume-reset-token', { token: rawToken });
+}
+async function setPassword(userId, newPassword) {
+  return await callPureApi('/set-password', { userId, newPassword });
+}
 
-router.delete('/me', authenticateJWT, async (req, res) => {
-  try {
-    await deleteUser(req.user.id);
-    clearAuthCookie(res);
-    res.status(204).end();
-  } catch (e) {
-    console.error('delete me error', e);
-    res.status(500).json({ error: 'Internal error' });
-  }
-});
-
-router.post('/me/avatar', authenticateJWT, upload.single('avatar'), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'No file' });
-    const mime = req.file.mimetype;
-    if (!/^image\/(png|jpe?g|gif|webp)$/.test(mime)) {
-      return res.status(400).json({ error: 'Unsupported file type' });
-    }
-    const b64 = req.file.buffer.toString('base64');
-    const dataUrl = `data:${mime};base64,${b64}`;
-    const updated = await updateProfile(req.user.id, { profilePictureUrl: dataUrl });
-    return res.json({ ok: true, profile_picture_url: updated.profile_picture_url });
-  } catch (e) {
-    console.error('upload avatar error', e);
-    return res.status(500).json({ error: 'Upload failed' });
-  }
-});
-
-module.exports = router;
+module.exports = {
+  createUserByEmail, findUserByEmail, findUserById, findUserByOAuth,
+  markEmailVerified, setUsernameAndPassword, updateProfile, deleteUser,
+  getAllUsers, storeVerificationCode, validateAndConsumeCode, setOAuthUser,
+  createPasswordResetToken, consumePasswordResetToken, setPassword
+};
