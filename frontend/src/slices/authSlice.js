@@ -10,16 +10,16 @@ const initialState = {
   error: null
 };
 
-// ✅ แก้ไข: เปลี่ยน Endpoint เป็น /api/users/me
+// ✅ แก้ไข 1: ใช้ endpoint /api/users/me (ไม่ใช่ /api/auth/me)
 export const checkAuthStatus = createAsyncThunk(
   'auth/checkStatus',
   async (_, { rejectWithValue }) => {
     try {
-      // เรียกข้อมูล User ปัจจุบัน
       const res = await api.get('/api/users/me');
-      return res.data; // { id, username, email, role, ... }
+      // ✅ แก้ไข 2: Backend Node.js ส่ง object user มาตรงๆ ไม่ได้ซ้อน data.data
+      return res.data; 
     } catch (err) {
-      // ถ้า 401/403 แปลว่ายังไม่ล็อกอิน ให้ return null เงียบๆ ไม่ต้อง throw error แดงเต็มจอ
+      // ถ้า 401/403 แปลว่ายังไม่ login ไม่ต้อง throw error แดง
       return rejectWithValue(null);
     }
   }
@@ -30,6 +30,8 @@ export const login = createAsyncThunk(
   async ({ email, password, remember }, { rejectWithValue }) => {
     try {
       const res = await api.post('/api/auth/login', { email, password });
+      
+      // ✅ แก้ไข 3: รับ token และ user จาก root object
       const { token, user } = res.data;
 
       if (remember) {
@@ -72,26 +74,24 @@ const authSlice = createSlice({
     builder
       // Check Status
       .addCase(checkAuthStatus.fulfilled, (state, action) => {
-        const user = action.payload;
+        state.status = 'succeeded';
+        const user = action.payload || {};
         if (user && user.id) {
-          state.status = 'succeeded';
           state.isAuthenticated = true;
           state.role = user.role;
           state.userId = user.id;
           state.user = user;
         } else {
-          // กรณี response แปลกๆ
           state.isAuthenticated = false;
           state.user = null;
         }
       })
       .addCase(checkAuthStatus.rejected, (state) => {
-        state.status = 'idle'; // เปลี่ยนเป็น idle เพื่อไม่ให้ loading ค้าง
+        state.status = 'failed';
         state.isAuthenticated = false;
-        state.role = null;
-        state.userId = null;
         state.user = null;
       })
+      
       // Login
       .addCase(login.pending, (state) => {
         state.status = 'loading';
@@ -107,12 +107,14 @@ const authSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload;
       })
+
       // Logout
       .addCase(logout.fulfilled, (state) => {
         state.isAuthenticated = false;
-        state.user = null;
         state.role = null;
         state.userId = null;
+        state.user = null;
+        state.status = 'idle';
       });
   }
 });
