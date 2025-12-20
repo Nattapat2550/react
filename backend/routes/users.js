@@ -1,4 +1,4 @@
-// backend/routes/users.js
+// react/backend/routes/users.js
 const express = require('express');
 const { authenticateJWT, clearAuthCookie } = require('../middleware/auth');
 const { updateProfile, deleteUser, findUserById } = require('../models/user');
@@ -33,7 +33,6 @@ router.put('/me', authenticateJWT, async (req, res) => {
 router.delete('/me', authenticateJWT, async (req, res) => {
   try {
     await deleteUser(req.user.id);
-    // ลบบัญชีเสร็จแล้ว ให้ลบ cookie token ทิ้งด้วย เพื่อกัน loop index/home
     clearAuthCookie(res);
     res.status(204).end();
   } catch (e) {
@@ -42,7 +41,6 @@ router.delete('/me', authenticateJWT, async (req, res) => {
   }
 });
 
-// Avatar upload
 router.post('/me/avatar', authenticateJWT, upload.single('avatar'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file' });

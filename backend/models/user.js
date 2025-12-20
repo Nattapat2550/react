@@ -1,126 +1,131 @@
-// backend/models/user.js
-// IMPORTANT: backend must NOT query Postgres directly.
-// All DB operations must go through pure-api (/api/internal/*)
+// react/backend/models/user.js
+const { callPureApi } = require('../utils/pureApi');
 
-const { get, post } = require('../utils/pureApiClient');
-
-// helper: unwrap { ok:true, data } -> data
-function unwrapData(resp) {
-  return resp && resp.ok === true ? resp.data : null;
-}
-
-// ---------- USERS ----------
+/**
+ * สร้าง User ใหม่ด้วย Email (ยังไม่ Verify)
+ */
 async function createUserByEmail(email) {
-  const resp = await post('/api/internal/create-user-email', { email });
-  return unwrapData(resp);
+  return await callPureApi('/create-user-email', { email });
 }
 
+/**
+ * ค้นหา User ด้วย Email
+ */
 async function findUserByEmail(email) {
-  const resp = await post('/api/internal/find-user', { email });
-  return unwrapData(resp);
+  return await callPureApi('/find-user', { email });
 }
 
+/**
+ * ค้นหา User ด้วย ID
+ */
 async function findUserById(id) {
-  const resp = await post('/api/internal/find-user', { id });
-  return unwrapData(resp);
+  return await callPureApi('/find-user', { id });
 }
 
+/**
+ * ค้นหา User ด้วย OAuth Provider
+ */
 async function findUserByOAuth(provider, oauthId) {
-  const resp = await post('/api/internal/find-user', { provider, oauthId });
-  return unwrapData(resp);
+  return await callPureApi('/find-user', { provider, oauthId });
 }
 
-// เดิมเคยมี markEmailVerified(userId) แต่ pure-api ทำใน verify-code อยู่แล้ว
-async function markEmailVerified(_userId) {
-  return true;
+/**
+ * เปลี่ยนสถานะ Email Verified
+ */
+async function markEmailVerified(userId) {
+  // Pure-API จัดการให้แล้ว
+  return null;
 }
 
-// ---------- AUTH / VERIFY ----------
-async function storeVerificationCode(userId, code, expiresAt) {
-  // expiresAt จะส่งเป็น Date ก็ได้ (JSON serialize เป็น string) หรือส่งเป็น ISO string
-  await post('/api/internal/store-verification-code', { userId, code, expiresAt });
-  return true;
-}
-
-async function validateAndConsumeCode(email, code) {
-  // pure-api route นี้ return result ตรง ๆ: { ok:true,userId } หรือ { ok:false, reason }
-  return post('/api/internal/verify-code', { email, code });
-}
-
+/**
+ * ตั้ง Username และ Password
+ */
 async function setUsernameAndPassword(email, username, password) {
-  const resp = await post('/api/internal/set-username-password', {
-    email,
-    username,
-    password, // ส่ง raw ได้เลย เพราะ pure-api hash ให้
-  });
-  return unwrapData(resp);
+  return await callPureApi('/set-username-password', { email, username, password });
 }
 
-async function setOAuthUser({ email, provider, oauthId, pictureUrl, name }) {
-  const resp = await post('/api/internal/set-oauth-user', {
-    email,
-    provider,
-    oauthId,
-    pictureUrl,
-    name,
-  });
-  return unwrapData(resp);
-}
-
-// ---------- PROFILE ----------
+/**
+ * อัปเดตข้อมูล Profile
+ */
 async function updateProfile(userId, { username, profilePictureUrl }) {
-  // ใช้ internal admin update เป็น “ทางเดียว” ที่ pure-api เปิดให้แก้ profile ผ่าน apiKey
-  const resp = await post('/api/internal/admin/users/update', {
-    id: userId,
-    username: username ?? null,
-    profile_picture_url: profilePictureUrl ?? null,
+  // ใช้ Endpoint Admin Update ของ Pure-API
+  return await callPureApi('/admin/users/update', { 
+    id: userId, 
+    username, 
+    profile_picture_url: profilePictureUrl 
   });
-  return unwrapData(resp);
 }
 
+/**
+ * ลบ User
+ */
 async function deleteUser(userId) {
-  await post('/api/internal/delete-user', { id: userId });
-  return true;
+  // รองรับการลบ user ถ้า pure-api มี endpoint นี้
+  return await callPureApi('/delete-user', { id: userId });
 }
 
+/**
+ * ดึง User ทั้งหมด (สำหรับ Admin)
+ */
 async function getAllUsers() {
-  const resp = await get('/api/internal/admin/users');
-  return unwrapData(resp) || [];
+  return await callPureApi('/admin/users') || [];
 }
 
-// ---------- RESET PASSWORD ----------
+/**
+ * บันทึก Verification Code
+ */
+async function storeVerificationCode(userId, code, expiresAt) {
+  return await callPureApi('/store-verification-code', { userId, code, expiresAt });
+}
+
+/**
+ * ตรวจสอบและใช้ Verification Code
+ */
+async function validateAndConsumeCode(email, code) {
+  const result = await callPureApi('/verify-code', { email, code });
+  if (!result || (result.ok === false)) {
+    return { ok: false, reason: result?.reason || 'error' };
+  }
+  return { ok: true, userId: result.userId || result.data?.userId };
+}
+
+/**
+ * สร้างหรืออัปเดต User จาก OAuth (Google)
+ */
+async function setOAuthUser(data) {
+  return await callPureApi('/set-oauth-user', data);
+}
+
+/**
+ * สร้าง Token สำหรับ Reset Password
+ */
 async function createPasswordResetToken(email, token, expiresAt) {
-  const resp = await post('/api/internal/create-reset-token', { email, token, expiresAt });
-  return unwrapData(resp);
+  return await callPureApi('/create-reset-token', { email, token, expiresAt });
 }
 
+/**
+ * ตรวจสอบและใช้ Token Reset Password
+ */
 async function consumePasswordResetToken(rawToken) {
-  const resp = await post('/api/internal/consume-reset-token', { token: rawToken });
-  return unwrapData(resp);
+  return await callPureApi('/consume-reset-token', { token: rawToken });
 }
 
+/**
+ * เปลี่ยนรหัสผ่านใหม่
+ */
 async function setPassword(userId, newPassword) {
-  const resp = await post('/api/internal/set-password', { userId, newPassword });
-  return unwrapData(resp);
+  return await callPureApi('/set-password', { userId, newPassword });
+}
+
+// Admin Update User (เพิ่ม function นี้เพื่อให้ routes/admin.js เรียกใช้ได้สะดวก)
+async function adminUpdateUser(id, payload) {
+    return await callPureApi('/admin/users/update', 'POST', { id, ...payload });
 }
 
 module.exports = {
-  createUserByEmail,
-  findUserByEmail,
-  findUserById,
-  findUserByOAuth,
-
-  markEmailVerified,
-  setUsernameAndPassword,
-  updateProfile,
-  deleteUser,
-  getAllUsers,
-
-  storeVerificationCode,
-  validateAndConsumeCode,
-  setOAuthUser,
-
-  createPasswordResetToken,
-  consumePasswordResetToken,
-  setPassword,
+  createUserByEmail, findUserByEmail, findUserById, findUserByOAuth,
+  markEmailVerified, setUsernameAndPassword, updateProfile, deleteUser,
+  getAllUsers, storeVerificationCode, validateAndConsumeCode, setOAuthUser,
+  createPasswordResetToken, consumePasswordResetToken, setPassword,
+  adminUpdateUser
 };

@@ -1,3 +1,4 @@
+// react/frontend/src/slices/authSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../api';
 
@@ -5,20 +6,19 @@ const initialState = {
   isAuthenticated: false,
   role: null,
   userId: null,
-  user: null, // ✅ เพิ่ม field นี้เพื่อเก็บข้อมูล User ทั้งหมดรวมถึงรูปภาพ
+  user: null, 
   status: 'idle',
   error: null
 };
 
-// ตรวจสอบสถานะ Login (เรียก /me)
+// ตรวจสอบสถานะ Login (เรียก /status ตามแบบ Docker)
 export const checkAuthStatus = createAsyncThunk(
   'auth/checkStatus',
   async (_, { rejectWithValue }) => {
     try {
-      // Browser จะส่ง Cookie ไปเองอัตโนมัติ (สำหรับเคส Google OAuth)
-      // หรือส่ง Header Authorization (สำหรับเคส Login ปกติ) ตาม interceptor ใน api.js
-      const res = await api.get('/api/auth/me');
-      return res.data.data; // Rust ส่งกลับมาใน format { ok: true, data: user }
+      // Backend (auth.js) คืนค่า { authenticated: true, id: ..., role: ... }
+      const res = await api.get('/api/auth/status');
+      return res.data; 
     } catch (err) {
       return rejectWithValue(err.response?.data?.error || 'Check auth failed');
     }
@@ -32,9 +32,9 @@ export const login = createAsyncThunk(
     try {
       const res = await api.post('/api/auth/login', { email, password });
       
-      const { token, user } = res.data.data;
+      // Backend (auth.js) ที่แก้แล้ว คืนค่า { token, role, user } ตรงๆ ไม่ซ้อน data
+      const { token, user } = res.data;
 
-      // เก็บ Token ไว้ใช้กับ api.js interceptor
       if (remember) {
         localStorage.setItem('token', token);
       } else {
@@ -52,7 +52,7 @@ export const logout = createAsyncThunk(
   'auth/logout',
   async (_, { rejectWithValue }) => {
     try {
-      await api.post('/api/auth/logout'); // สั่งลบ Cookie ฝั่ง Server
+      await api.post('/api/auth/logout'); 
     } catch (err) {
       // ignore errors
     } finally {
@@ -79,11 +79,24 @@ const authSlice = createSlice({
       })
       .addCase(checkAuthStatus.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        const user = action.payload || {};
-        state.isAuthenticated = !!user.id;
-        state.role = user.id ? user.role : null;
-        state.userId = user.id || null;
-        state.user = user;
+        const data = action.payload || {};
+        
+        // Response จาก /status คือ { authenticated, id, role }
+        if (data.authenticated) {
+            state.isAuthenticated = true;
+            state.role = data.role;
+            state.userId = data.id;
+            // หมายเหตุ: /status ของ docker ไม่คืน user object เต็มๆ 
+            // ถ้าต้องการ full user อาจต้อง fetch แยก หรือใช้ค่าเดิมที่มี
+            if (!state.user) {
+                state.user = { id: data.id, role: data.role }; 
+            }
+        } else {
+            state.isAuthenticated = false;
+            state.role = null;
+            state.userId = null;
+            state.user = null;
+        }
       })
       .addCase(checkAuthStatus.rejected, (state) => {
         state.status = 'failed';

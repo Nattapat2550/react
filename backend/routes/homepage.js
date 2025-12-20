@@ -1,28 +1,23 @@
+// react/backend/routes/homepage.js
 const express = require('express');
+const { callPureApi } = require('../utils/pureApi');
+const { authenticateJWT, isAdmin } = require('../middleware/auth');
+
 const router = express.Router();
 
-// IMPORTANT: Use pure-api only (no direct DB)
-const { get, post } = require('../utils/pureApiClient');
-
-// GET homepage content
-router.get('/', async (req, res, next) => {
-  try {
-    const data = await get('/api/internal/homepage');
-    res.json(data);
-  } catch (err) {
-    next(err);
-  }
+router.get('/', async (_req, res) => {
+  const data = await callPureApi('/homepage/list', 'GET') || [];
+  res.json(data);
 });
 
-// UPDATE homepage content (admin or authorized)
-router.post('/update', async (req, res, next) => {
-  try {
-    const payload = req.body || {};
-    const data = await post('/api/internal/homepage/update', payload);
-    res.json(data);
-  } catch (err) {
-    next(err);
-  }
+router.put('/', authenticateJWT, isAdmin, async (req, res) => {
+  const { section_name, content } = req.body || {};
+  if (!section_name) return res.status(400).json({ error: 'Missing section_name' });
+  
+  const result = await callPureApi('/homepage/update', 'POST', { section_name, content });
+  if (!result) return res.status(500).json({ error: 'Failed to update homepage' });
+  
+  res.json(result);
 });
 
 module.exports = router;

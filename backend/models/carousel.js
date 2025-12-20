@@ -1,27 +1,29 @@
-// backend/models/carousel.js
-// IMPORTANT: do not access DB directly. Use pure-api only.
+// react/backend/models/carousel.js
+const { callPureApi } = require('../utils/pureApi');
 
-const { get, post } = require('../utils/pureApiClient');
-
-async function getCarouselItems() {
-  return get('/api/internal/carousel/items');
+async function listCarouselItems() {
+  // GET /api/internal/carousel/list
+  return await callPureApi('/carousel/list', 'GET') || [];
 }
 
-async function addCarouselItem(item) {
-  return post('/api/internal/carousel/items/add', item);
+async function createCarouselItem(data) {
+  // POST /api/internal/carousel/create
+  return await callPureApi('/carousel/create', 'POST', data);
 }
 
-async function updateCarouselItem(id, item) {
-  return post('/api/internal/carousel/items/update', { id, ...item });
+async function updateCarouselItem(id, data) {
+  // POST /api/internal/carousel/update
+  return await callPureApi('/carousel/update', 'POST', { id, ...data });
 }
 
 async function deleteCarouselItem(id) {
-  return post('/api/internal/carousel/items/delete', { id });
+  // POST /api/internal/carousel/delete
+  return await callPureApi('/carousel/delete', 'POST', { id });
 }
 
 module.exports = {
-  getCarouselItems,
-  addCarouselItem,
+  listCarouselItems,
+  createCarouselItem,
   updateCarouselItem,
   deleteCarouselItem,
 };
