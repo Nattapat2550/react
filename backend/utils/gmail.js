@@ -1,22 +1,32 @@
-const { google } = require('googleapis');
-const MailComposer = require('nodemailer/lib/mail-composer');
+// react/backend/utils/gmail.js
+const nodemailer = require('nodemailer');
 
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI
-);
-oauth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
-
-const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER, // e.g. "myemail@gmail.com"
+    pass: process.env.GMAIL_PASS, // App Password 16 หลัก
+  },
+});
 
 async function sendEmail({ to, subject, text, html }) {
-  const mail = new MailComposer({ to, subject, text, html, from: process.env.SENDER_EMAIL });
-  const message = await new Promise((resolve, reject) => {
-    mail.compile().build((err, msg) => (err ? reject(err) : resolve(msg)));
-  });
-  const encoded = Buffer.from(message).toString('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-  await gmail.users.messages.send({ userId:'me', requestBody:{ raw: encoded } });
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) {
+    console.warn('GMAIL_USER or GMAIL_PASS missing. Skipping email.');
+    return;
+  }
+
+  try {
+    await transporter.sendMail({
+      from: process.env.GMAIL_USER,
+      to,
+      subject,
+      text,
+      html,
+    });
+    console.log(`Email sent to ${to}`);
+  } catch (err) {
+    console.error('Failed to send email:', err);
+  }
 }
 
 module.exports = { sendEmail };

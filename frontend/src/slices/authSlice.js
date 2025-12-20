@@ -6,20 +6,23 @@ const initialState = {
   isAuthenticated: false,
   role: null,
   userId: null,
-  user: null, 
+  user: null,
   status: 'idle',
   error: null
 };
 
-// ตรวจสอบสถานะ Login (เรียก /status ตามแบบ Docker)
+// ตรวจสอบสถานะ Login (ใช้ /api/users/me เพื่อดึงข้อมูล User)
 export const checkAuthStatus = createAsyncThunk(
   'auth/checkStatus',
   async (_, { rejectWithValue }) => {
     try {
-      // Backend (auth.js) คืนค่า { authenticated: true, id: ..., role: ... }
-      const res = await api.get('/api/auth/status');
+      // เปลี่ยนจาก /api/auth/me (ซึ่งไม่มีอยู่จริง) เป็น /api/users/me
+      const res = await api.get('/api/users/me');
+      
+      // Node Backend ส่ง object user มาตรงๆ ไม่ได้ห่อใน data.data
       return res.data; 
     } catch (err) {
+      // 401/403 ถือว่าปกติสำหรับคนยังไม่ Login
       return rejectWithValue(err.response?.data?.error || 'Check auth failed');
     }
   }
@@ -32,7 +35,7 @@ export const login = createAsyncThunk(
     try {
       const res = await api.post('/api/auth/login', { email, password });
       
-      // Backend (auth.js) ที่แก้แล้ว คืนค่า { token, role, user } ตรงๆ ไม่ซ้อน data
+      // Backend ส่ง { token, user, role } มาตรงๆ ใน res.data
       const { token, user } = res.data;
 
       if (remember) {
@@ -52,7 +55,7 @@ export const logout = createAsyncThunk(
   'auth/logout',
   async (_, { rejectWithValue }) => {
     try {
-      await api.post('/api/auth/logout'); 
+      await api.post('/api/auth/logout');
     } catch (err) {
       // ignore errors
     } finally {
@@ -79,27 +82,14 @@ const authSlice = createSlice({
       })
       .addCase(checkAuthStatus.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        const data = action.payload || {};
-        
-        // Response จาก /status คือ { authenticated, id, role }
-        if (data.authenticated) {
-            state.isAuthenticated = true;
-            state.role = data.role;
-            state.userId = data.id;
-            // หมายเหตุ: /status ของ docker ไม่คืน user object เต็มๆ 
-            // ถ้าต้องการ full user อาจต้อง fetch แยก หรือใช้ค่าเดิมที่มี
-            if (!state.user) {
-                state.user = { id: data.id, role: data.role }; 
-            }
-        } else {
-            state.isAuthenticated = false;
-            state.role = null;
-            state.userId = null;
-            state.user = null;
-        }
+        const user = action.payload || {};
+        state.isAuthenticated = !!user.id;
+        state.role = user.role || null;
+        state.userId = user.id || null;
+        state.user = user;
       })
       .addCase(checkAuthStatus.rejected, (state) => {
-        state.status = 'failed';
+        state.status = 'failed'; // หรือ 'idle' ก็ได้ ถ้ามองว่า guest คือสถานะปกติ
         state.isAuthenticated = false;
         state.role = null;
         state.userId = null;

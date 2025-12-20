@@ -1,85 +1,73 @@
+// react/backend/middleware/auth.js
 const jwt = require('jsonwebtoken');
 
-/**
- * สร้าง / เขียน cookie สำหรับ JWT
- * @param {import('express').Response} res
- * @param {string} token
- * @param {boolean} remember - ถ้า true อายุ cookie 30 วัน ไม่งั้น 1 วัน
- */
-function setAuthCookie(res, token, remember) {
-  res.cookie('token', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'None', // เพราะ front / back คนละโดเมน
-    maxAge: remember
-      ? 1000 * 60 * 60 * 24 * 30 // 30 วัน
-      : 1000 * 60 * 60 * 24,     // 1 วัน
-    path: '/',
-  });
-}
-
-/**
- * ลบ cookie token
- */
-function clearAuthCookie(res) {
-  res.cookie('token', '', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'None',
-    expires: new Date(0),
-    path: '/',
-  });
-}
-
-/**
- * ดึง token จาก cookie หรือ Authorization header (Bearer)
- */
-function extractToken(req) {
-  const cookieToken = req.cookies?.token;
-  const authHeader = req.headers.authorization;
-  let headerToken = null;
-
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    headerToken = authHeader.substring(7);
-  }
-  return cookieToken || headerToken;
-}
-
-/**
- * Middleware ตรวจ JWT
- */
 function authenticateJWT(req, res, next) {
-  const token = extractToken(req);
+  // 1. ลองดึง Token จาก Cookie หรือ Header
+  let token = req.cookies?.token;
+  
+  if (!token && req.headers.authorization) {
+    const parts = req.headers.authorization.split(' ');
+    if (parts.length === 2 && parts[0] === 'Bearer') {
+      token = parts[1];
+    }
+  }
+
   if (!token) {
+    // ถ้าไม่มี token เลย
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    // ควรมีอย่างน้อย id + role ตาม signToken ใน routes/auth.js
-    req.user = {
-      id: payload.id,
-      role: payload.role || 'user',
-    };
+    req.user = payload; // { id, role, ... }
     next();
-  } catch (e) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  } catch (err) {
+    return res.status(403).json({ error: 'Forbidden: Invalid token' });
   }
 }
 
-/**
- * Middleware เช็ก role = admin
- */
 function isAdmin(req, res, next) {
   if (req.user && req.user.role === 'admin') {
-    return next();
+    next();
+  } else {
+    res.status(403).json({ error: 'Admin only' });
   }
-  return res.status(403).json({ error: 'Forbidden' });
+}
+
+// Helper สำหรับตั้ง Cookie (ใช้ใน Login/Register/OAuth)
+function setAuthCookie(res, token, remember = false) {
+  const maxAge = remember ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000; // 30วัน หรือ 1วัน
+  res.cookie('token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production', // true ถ้าเป็น https
+    sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+    maxAge,
+  });
+}
+
+function clearAuthCookie(res) {
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+  });
+}
+
+function extractToken(req) {
+  if (req.cookies && req.cookies.token) return req.cookies.token;
+  if (req.headers.authorization) {
+    const parts = req.headers.authorization.split(' ');
+    if (parts.length === 2 && parts[0] === 'Bearer') {
+      return parts[1];
+    }
+  }
+  return null;
 }
 
 module.exports = {
-  setAuthCookie,
-  clearAuthCookie,
   authenticateJWT,
   isAdmin,
+  setAuthCookie,
+  clearAuthCookie,
+  extractToken
 };

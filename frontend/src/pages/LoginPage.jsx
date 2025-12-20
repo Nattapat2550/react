@@ -1,4 +1,4 @@
-// frontend/src/pages/LoginPage.jsx
+// react/frontend/src/pages/LoginPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { login, clearAuthError } from '../slices/authSlice';
@@ -16,7 +16,7 @@ const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // <-- state ใหม่
+  const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState(null);
 
   useEffect(() => {
@@ -54,6 +54,8 @@ const LoginPage = () => {
         <label>Email</label>
         <input
           type="email"
+          name="email"
+          autoComplete="username" 
           required
           value={email}
           onChange={(e) => setEmail(e.target.value.trim())}
@@ -61,7 +63,9 @@ const LoginPage = () => {
 
         <label>Password</label>
         <input
-          type={showPassword ? 'text' : 'password'}  // <-- เปลี่ยนตาม checkbox
+          type={showPassword ? 'text' : 'password'}
+          name="password"
+          autoComplete="current-password"
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
