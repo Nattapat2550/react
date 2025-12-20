@@ -21,7 +21,7 @@ const app = express();
 
 app.set('trust proxy', 1);
 
-// Security Headers แบบ Docker
+// 1) Security Headers
 app.use(helmet());
 app.use((req, res, next) => {
   res.setHeader(
@@ -33,12 +33,13 @@ app.use((req, res, next) => {
   next();
 });
 
+// 2) Compression & Parsing
 app.use(compression());
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: false, limit: '2mb' }));
 app.use(cookieParser());
 
-// CORS logic แบบ Docker (รองรับหลาย origins และ dev mode)
+// 3) CORS
 const normalizeOrigin = (s) => (s ? s.trim().replace(/\/+$/, '') : '');
 const allowedOrigins = (process.env.FRONTEND_URL || '')
   .split(',')
@@ -60,7 +61,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-requested-with'],
 }));
 
-// Rate Limit
+// 4) Rate Limit
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -69,7 +70,7 @@ const authLimiter = rateLimit({
 });
 app.use('/api/auth', authLimiter);
 
-// Routes
+// 5) API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
@@ -77,10 +78,26 @@ app.use('/api/homepage', homepageRoutes);
 app.use('/api/carousel', carouselRoutes);
 app.use('/api/download', downloadRoutes);
 
-app.get('/health', (req, res) => res.json({ ok: true }));
+// 6) [เพิ่ม] Root Route (Redirect to Frontend)
+// ถ้าเข้า Backend ตรงๆ ให้เด้งไป Frontend หรือแสดงข้อความถ้าไม่มี Frontend URL
+app.get('/', (_req, res) => {
+  if (process.env.FRONTEND_URL) {
+    return res.redirect(process.env.FRONTEND_URL);
+  }
+  return res.status(200).send('Backend API is running');
+});
 
+// 7) [เพิ่ม] Favicon Handler
+// ป้องกัน 404 เมื่อ Browser พยายามขอไอคอนจาก Backend
+app.get('/favicon.ico', (_req, res) => res.status(204).end());
+
+// 8) Health Check
+app.get('/health', (_req, res) => res.json({ ok: true }));
+
+// 9) 404 Not Found
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 
+// 10) Global Error Handler
 app.use((err, req, res, next) => {
   console.error('[SERVER ERROR]', err);
   if (res.headersSent) return;
