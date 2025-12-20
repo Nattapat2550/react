@@ -1,149 +1,166 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../api';
 
-function normalizeCarousel(items) {
-  const arr = Array.isArray(items) ? items : (items?.data || items?.items || []);
-  return (arr || [])
-    .map((it) => ({
-      id: it.id,
-      item_index: it.item_index ?? it.itemIndex ?? 0,
-      image_dataurl: it.image_dataurl ?? it.imageDataUrl ?? '',
-      title: it.title || '',
-      subtitle: it.subtitle || '',
-      description: it.description || '',
-    }))
-    .sort((a, b) => (a.item_index || 0) - (b.item_index || 0));
-}
+const normalizeCarouselItems = (payload) => {
+  // รองรับหลายรูปแบบ: array หรือ {ok,data}
+  let items = payload;
+  if (payload && typeof payload === 'object' && Array.isArray(payload.data)) {
+    items = payload.data;
+  }
+  if (!Array.isArray(items)) return [];
 
-function pickHomepage(contentArray) {
-  const m = new Map();
-  (contentArray || []).forEach((r) => m.set(r.section_name, r.content));
-  return {
-    welcome_title: m.get('welcome_title') || 'Welcome!',
-    main_paragraph: m.get('main_paragraph') || 'This is your protected homepage.',
-  };
-}
+  return items.map((it, idx) => ({
+    id: it.id ?? idx,
+    title: it.title ?? '',
+    subtitle: it.subtitle ?? '',
+    description: it.description ?? '',
+    image_dataurl: it.image_dataurl || it.imageUrl || it.image_url || '',
+  })).filter((x) => x.image_dataurl);
+};
 
 const HomePage = () => {
+  const navigate = useNavigate();
+
+  const [me, setMe] = useState(null);
+  const [contentMap, setContentMap] = useState({});
   const [slides, setSlides] = useState([]);
-  const [home, setHome] = useState({ welcome_title: 'Welcome!', main_paragraph: 'This is your protected homepage.' });
-  const [idx, setIdx] = useState(0);
-  const [err, setErr] = useState('');
-  const touch = useRef({ startX: 0, moved: false });
+  const [index, setIndex] = useState(0);
+
+  const trackRef = useRef(null);
+  const shellRef = useRef(null);
+
+  const pointerDownRef = useRef(false);
+  const startXRef = useRef(0);
+
+  const safeSlides = useMemo(() => {
+    if (slides.length > 0) return slides;
+    return [
+      {
+        id: 'fallback',
+        title: 'No slides yet',
+        subtitle: '',
+        description: '',
+        image_dataurl: '/images/user.png',
+      },
+    ];
+  }, [slides]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setErr('');
+    const init = async () => {
       try {
-        const [cRes, hRes] = await Promise.all([
-          api.get('/api/carousel'),
-          api.get('/api/homepage'),
-        ]);
+        const meRes = await api.get('/api/users/me');
+        setMe(meRes.data);
 
-        const c = normalizeCarousel(cRes.data);
-        const h = pickHomepage(hRes.data);
+        const hpRes = await api.get('/api/homepage');
+        const arr = Array.isArray(hpRes.data) ? hpRes.data : [];
+        const map = Object.fromEntries(arr.map((c) => [c.section_name, c.content]));
+        setContentMap(map);
 
-        if (!cancelled) {
-          setSlides(c);
-          setHome(h);
-          setIdx(0);
-        }
-      } catch (e) {
-        if (!cancelled) setErr(e.response?.data?.error || 'Failed to load homepage');
+        const carRes = await api.get('/api/carousel');
+        const normalized = normalizeCarouselItems(carRes.data);
+        setSlides(normalized);
+      } catch {
+        // ถ้า auth หลุด → กลับหน้าแรก
+        navigate('/', { replace: true });
       }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
     };
-  }, []);
+    init();
+  }, [navigate]);
 
-  const current = useMemo(() => slides[idx] || null, [slides, idx]);
+  // swipe (เหมือน docker)
+  useEffect(() => {
+    const onPointerUp = (e) => {
+      if (!pointerDownRef.current) return;
+      const dx = e.clientX - startXRef.current;
+      if (dx > 40) setIndex((i) => (i - 1 + safeSlides.length) % safeSlides.length);
+      else if (dx < -40) setIndex((i) => (i + 1) % safeSlides.length);
+      pointerDownRef.current = false;
+    };
+    window.addEventListener('pointerup', onPointerUp);
+    return () => window.removeEventListener('pointerup', onPointerUp);
+  }, [safeSlides.length]);
 
-  const prev = () => {
-    if (!slides.length) return;
-    setIdx((i) => (i - 1 + slides.length) % slides.length);
+  const goTo = (i) => {
+    const len = safeSlides.length;
+    setIndex((((i % len) + len) % len));
   };
-  const next = () => {
-    if (!slides.length) return;
-    setIdx((i) => (i + 1) % slides.length);
-  };
+
+  const current = safeSlides[index] || safeSlides[0];
+  const welcomeHeader =
+    contentMap.welcome_header || `Welcome, ${me?.username || me?.email || ''}`.trim();
+  const mainParagraph = contentMap.main_paragraph || 'This is your dashboard.';
 
   return (
     <>
-      <h1>Home</h1>
-      {err ? <p className="muted">{err}</p> : null}
-
-      <div className="carousel">
-        <button className="carousel-btn prev" type="button" onClick={prev}>⟨</button>
-
+      {/* Carousel */}
+      <div className="carousel" id="carousel" ref={shellRef}>
         <div
-          className="carousel-viewport"
-          onTouchStart={(e) => {
-            touch.current.startX = e.touches[0].clientX;
-            touch.current.moved = false;
-          }}
-          onTouchMove={(e) => {
-            const dx = e.touches[0].clientX - touch.current.startX;
-            if (Math.abs(dx) > 25) touch.current.moved = true;
-          }}
-          onTouchEnd={(e) => {
-            const endX = e.changedTouches[0].clientX;
-            const dx = endX - touch.current.startX;
-            if (!touch.current.moved) return;
-            if (dx > 30) prev();
-            if (dx < -30) next();
+          className="carousel-track"
+          id="carousel-track"
+          ref={trackRef}
+          style={{ transform: `translateX(-${index * 100}%)` }}
+          onPointerDown={(e) => {
+            pointerDownRef.current = true;
+            startXRef.current = e.clientX;
           }}
         >
-          <div
-            className="carousel-track"
-            style={{
-              transform: `translateX(${-idx * 100}%)`,
-              width: `${Math.max(slides.length, 1) * 100}%`,
-            }}
-          >
-            {(slides.length ? slides : [{ id: 'empty', image_dataurl: '' }]).map((it) => (
-              <div className="carousel-slide" key={it.id}>
-                {it.image_dataurl ? (
-                  <img src={it.image_dataurl} alt={it.title || 'slide'} />
-                ) : (
-                  <div className="carousel-empty">No slides</div>
-                )}
-              </div>
-            ))}
-          </div>
+          {safeSlides.map((it) => (
+            <div className="carousel-slide" key={it.id}>
+              <img src={it.image_dataurl} alt={it.title || 'Slide'} />
+            </div>
+          ))}
         </div>
 
-        <button className="carousel-btn next" type="button" onClick={next}>⟩</button>
+        <button
+          className="carousel-prev"
+          id="carousel-prev"
+          aria-label="รูปก่อนหน้า"
+          title="< รูปก่อนหน้า"
+          type="button"
+          onClick={() => goTo(index - 1)}
+        >
+          &lt;
+        </button>
+
+        <button
+          className="carousel-next"
+          id="carousel-next"
+          aria-label="รูปถัดไป"
+          title="> รูปถัดไป"
+          type="button"
+          onClick={() => goTo(index + 1)}
+        >
+          &gt;
+        </button>
+
+        <div className="carousel-indicators" id="carousel-indicators">
+          {safeSlides.map((it, idx) => (
+            <button
+              key={it.id}
+              type="button"
+              className={idx === index ? 'active' : ''}
+              onClick={() => goTo(idx)}
+              aria-label={`Slide ${idx + 1}`}
+              title={it.title || `Slide ${idx + 1}`}
+            >
+              <img src={it.image_dataurl} alt={it.title || `Slide ${idx + 1}`} />
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="thumbs">
-        {slides.map((it, i) => (
-          <button
-            key={it.id}
-            type="button"
-            className={'thumb' + (i === idx ? ' active' : '')}
-            onClick={() => setIdx(i)}
-            title={it.title || `Slide ${i + 1}`}
-          >
-            <img src={it.image_dataurl} alt="" />
-          </button>
-        ))}
+      {/* Caption Box */}
+      <div id="carousel-caption-box" className="card">
+        <h3 id="cc-title">{current?.title || ''}</h3>
+        <h5 id="cc-subtitle" className="muted">{current?.subtitle || ''}</h5>
+        <p id="cc-desc">{current?.description || ''}</p>
       </div>
 
-      <section className="card caption">
-        <h2>{current?.title || ''}</h2>
-        <h3 className="muted">{current?.subtitle || ''}</h3>
-        <p>{current?.description || ''}</p>
-      </section>
+      <hr />
 
-      <section className="card">
-        <h2>{home.welcome_title}</h2>
-        <p>{home.main_paragraph}</p>
-      </section>
+      <h2 id="welcome_header">{welcomeHeader}</h2>
+      <p id="main_paragraph">{mainParagraph}</p>
     </>
   );
 };
