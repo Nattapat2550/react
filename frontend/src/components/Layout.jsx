@@ -36,7 +36,7 @@ const Layout = ({ children }) => {
     };
   }, [isAuthenticated]);
 
-  // theme toggle
+  // จัดการ Theme (Dark/Light)
   useEffect(() => {
     const saved = localStorage.getItem('theme') === 'dark';
     setDark(saved);
@@ -60,27 +60,22 @@ const Layout = ({ children }) => {
     }
   };
 
-  const atPublicLanding =
-    location.pathname === '/' && !isAuthenticated;
+  const showDownloadLink = true; // แสดงลิงก์ Download เสมอ
 
-  const showDownloadLink = true; // ให้เหมือนของเก่า มี Download ตลอด
-
-  const userDisplayName =
-    me?.username || me?.email || 'User';
+  const userDisplayName = me?.username || me?.email || 'User';
 
   return (
     <div>
       {/* Top Nav */}
       <nav className="nav">
-        <div className="brand">
-          <Link to="/" className="brand-text">
-            MySite
-          </Link>
-        </div>
-
+        {/* ส่วนโลโก้: ใส่ className="brand" ที่ Link โดยตรงเพื่อให้สีรุ้งทำงาน */}
+        <Link to="/" className="brand">
+          MySite
+        </Link>
 
         <div className="links">
-          {/* ลิงก์เมนูหลักเหมือนเวอร์ชันเก่า */}
+          {/* ลิงก์เมนูหลัก */}
+          {/* ใช้ NavLink เพื่อให้ React Router จัดการ active state ได้ถ้าต้องการ */}
           <NavLink to="/about">About</NavLink>
           <NavLink to="/contact">Contact</NavLink>
           {showDownloadLink && (
@@ -92,16 +87,15 @@ const Layout = ({ children }) => {
             id="themeToggle"
             type="button"
             onClick={handleThemeToggle}
+            title="Toggle Theme"
           >
-            🌓
+            {dark ? '🌙' : '☀️'}
           </button>
 
-          {/* ถ้า login แล้ว -> แสดง user menu แบบ home.html เดิม */}
+          {/* User Menu (แสดงเมื่อ Login แล้ว) */}
           {isAuthenticated && (
             <div
-              className={
-                'user-menu' + (dropdownOpen ? ' open' : '')
-              }
+              className={'user-menu' + (dropdownOpen ? ' open' : '')}
             >
               <img
                 src={me?.profile_picture_url || '/images/user.png'}
@@ -111,10 +105,15 @@ const Layout = ({ children }) => {
               <span onClick={() => setDropdownOpen((o) => !o)}>
                 {userDisplayName}
               </span>
+              
               <div className="dropdown">
-                <Link to="/settings">Settings</Link>
+                <Link to="/settings" onClick={() => setDropdownOpen(false)}>
+                  Settings
+                </Link>
                 {role === 'admin' && (
-                  <Link to="/admin">Admin</Link>
+                  <Link to="/admin" onClick={() => setDropdownOpen(false)}>
+                    Admin
+                  </Link>
                 )}
                 <button
                   type="button"
@@ -127,11 +126,11 @@ const Layout = ({ children }) => {
             </div>
           )}
 
-          {/* ถ้ายังไม่ login: ไม่แสดง user-menu (เหมือน index.html เดิม) */}
+          {/* ถ้ายังไม่ Login ปุ่ม Login/Register จะอยู่ที่หน้า Landing/Login เอง */}
         </div>
       </nav>
 
-      {/* Main content + container เหมือนหน้าเก่า */}
+      {/* Main Content */}
       <main className="container">
         {children}
       </main>
