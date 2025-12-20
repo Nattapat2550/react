@@ -1,4 +1,3 @@
-// react/frontend/src/slices/authSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../api';
 
@@ -11,31 +10,26 @@ const initialState = {
   error: null
 };
 
-// ตรวจสอบสถานะ Login (ใช้ /api/users/me เพื่อดึงข้อมูล User)
+// ✅ แก้ไข: เปลี่ยน Endpoint เป็น /api/users/me
 export const checkAuthStatus = createAsyncThunk(
   'auth/checkStatus',
   async (_, { rejectWithValue }) => {
     try {
-      // เปลี่ยนจาก /api/auth/me (ซึ่งไม่มีอยู่จริง) เป็น /api/users/me
+      // เรียกข้อมูล User ปัจจุบัน
       const res = await api.get('/api/users/me');
-      
-      // Node Backend ส่ง object user มาตรงๆ ไม่ได้ห่อใน data.data
-      return res.data; 
+      return res.data; // { id, username, email, role, ... }
     } catch (err) {
-      // 401/403 ถือว่าปกติสำหรับคนยังไม่ Login
-      return rejectWithValue(err.response?.data?.error || 'Check auth failed');
+      // ถ้า 401/403 แปลว่ายังไม่ล็อกอิน ให้ return null เงียบๆ ไม่ต้อง throw error แดงเต็มจอ
+      return rejectWithValue(null);
     }
   }
 );
 
-// Login ด้วย Email/Password
 export const login = createAsyncThunk(
   'auth/login',
   async ({ email, password, remember }, { rejectWithValue }) => {
     try {
       const res = await api.post('/api/auth/login', { email, password });
-      
-      // Backend ส่ง { token, user, role } มาตรงๆ ใน res.data
       const { token, user } = res.data;
 
       if (remember) {
@@ -57,7 +51,7 @@ export const logout = createAsyncThunk(
     try {
       await api.post('/api/auth/logout');
     } catch (err) {
-      // ignore errors
+      // ignore
     } finally {
       localStorage.removeItem('token');
       sessionStorage.removeItem('token');
@@ -77,49 +71,48 @@ const authSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // Check Status
-      .addCase(checkAuthStatus.pending, (state) => {
-        state.status = 'loading';
-      })
       .addCase(checkAuthStatus.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        const user = action.payload || {};
-        state.isAuthenticated = !!user.id;
-        state.role = user.role || null;
-        state.userId = user.id || null;
-        state.user = user;
+        const user = action.payload;
+        if (user && user.id) {
+          state.status = 'succeeded';
+          state.isAuthenticated = true;
+          state.role = user.role;
+          state.userId = user.id;
+          state.user = user;
+        } else {
+          // กรณี response แปลกๆ
+          state.isAuthenticated = false;
+          state.user = null;
+        }
       })
       .addCase(checkAuthStatus.rejected, (state) => {
-        state.status = 'failed'; // หรือ 'idle' ก็ได้ ถ้ามองว่า guest คือสถานะปกติ
+        state.status = 'idle'; // เปลี่ยนเป็น idle เพื่อไม่ให้ loading ค้าง
         state.isAuthenticated = false;
         state.role = null;
         state.userId = null;
         state.user = null;
       })
-      
       // Login
       .addCase(login.pending, (state) => {
         state.status = 'loading';
       })
       .addCase(login.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        const user = action.payload || {};
-        state.isAuthenticated = !!user.id;
-        state.role = user.role || null;
-        state.userId = user.id || null;
-        state.user = user;
+        state.isAuthenticated = true;
+        state.user = action.payload;
+        state.role = action.payload.role;
+        state.userId = action.payload.id;
       })
       .addCase(login.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.payload || 'Login failed';
+        state.error = action.payload;
       })
-
       // Logout
       .addCase(logout.fulfilled, (state) => {
         state.isAuthenticated = false;
+        state.user = null;
         state.role = null;
         state.userId = null;
-        state.user = null;
-        state.status = 'idle';
       });
   }
 });

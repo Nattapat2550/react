@@ -1,53 +1,74 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../api';
-import { useDispatch } from 'react-redux';
-import { checkAuthStatus } from '../slices/authSlice';
 
 const CompleteProfilePage = () => {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const [search] = useSearchParams();
-  
-  const [email, setEmail] = useState(search.get('email') || sessionStorage.getItem('pendingEmail') || '');
+  const location = useLocation();
+  const query = new URLSearchParams(location.search);
+  const emailParam = query.get('email') || '';
+
+  const [email] = useState(emailParam);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [msg, setMsg] = useState(null);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMsg(null);
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
     try {
-      const res = await api.post('/api/auth/complete-profile', {
-        email: email.trim(),
-        username: username.trim(),
-        password
-      });
-
-      // ✅ รับ Token จาก Backend แล้ว Save เลย
-      const { token } = res.data.data;
-      if (token) {
-        localStorage.setItem('token', token);
-      }
-
-      await dispatch(checkAuthStatus());
-      navigate('/home', { replace: true });
+      await api.post('/api/auth/complete-profile', { email, username, password });
+      // ล็อกอินสำเร็จ -> ไปหน้า Home
+      navigate('/home');
     } catch (err) {
-      setMsg(err.response?.data?.error || 'Failed to complete profile');
+      setError(err.response?.data?.error || 'Failed to complete profile');
     }
   };
 
   return (
-    <section>
+    <div>
       <h2>Complete Profile</h2>
-      <form onSubmit={handleSubmit}>
-        <label>Email <input type="email" value={email} onChange={e=>setEmail(e.target.value)} required /></label>
-        <label>Username <input type="text" value={username} onChange={e=>setUsername(e.target.value)} required /></label>
-        <label>Password <input type="password" value={password} onChange={e=>setPassword(e.target.value)} required /></label>
-        <button type="submit">Save & Login</button>
+      <p className="muted">Please set your username and password to continue.</p>
+      
+      <form onSubmit={handleSubmit} className="card" style={{ maxWidth: '400px', margin: '0 auto' }}>
+        <label>Email</label>
+        <input type="email" value={email} disabled style={{ backgroundColor: '#f0f0f0' }} />
+
+        <label>Username</label>
+        <input 
+          type="text" 
+          required 
+          autoComplete="username"
+          value={username} 
+          onChange={(e) => setUsername(e.target.value)} 
+        />
+
+        <label>Password</label>
+        <input 
+          type="password" 
+          required 
+          autoComplete="new-password"
+          value={password} 
+          onChange={(e) => setPassword(e.target.value)} 
+        />
+
+        <label>Confirm Password</label>
+        <input 
+          type="password" 
+          required 
+          autoComplete="new-password"
+          value={confirmPassword} 
+          onChange={(e) => setConfirmPassword(e.target.value)} 
+        />
+
+        <button type="submit" className="btn" style={{ marginTop: '1rem' }}>Save & Login</button>
+        {error && <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>}
       </form>
-      {msg && <p style={{color:'red'}}>{msg}</p>}
-    </section>
+    </div>
   );
 };
 

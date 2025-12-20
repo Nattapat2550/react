@@ -31,9 +31,11 @@ const RegisterPage = () => {
         <label>Email</label>
         <input
           type="email"
+          name="email"
+          autoComplete="email" 
           required
           value={email}
-          onChange={(e) => setEmail(e.target.value.trim())}
+          onChange={(e) => setEmail(e.target.value)}
         />
 
         <button className="btn" type="submit">
