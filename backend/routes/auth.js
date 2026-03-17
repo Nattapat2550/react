@@ -1,4 +1,3 @@
-// react/backend/routes/auth.js
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const { google } = require('googleapis');
@@ -102,7 +101,6 @@ router.post('/complete-profile', async (req, res) => {
     const token = signToken(updated);
     setAuthCookie(res, token, true);
 
-    // แก้ไข: ส่งข้อมูลกลับให้ครบเหมือน Docker เพื่อให้ Frontend นำไปใช้ต่อได้ทันที
     res.json({
       ok: true,
       token,
@@ -135,7 +133,6 @@ router.post('/login', async (req, res) => {
     const token = signToken(user);
     setAuthCookie(res, token, !!remember);
 
-    // แก้ไข: ส่ง token และ user object กลับไปให้ Frontend
     res.json({
       role: user.role,
       token,
@@ -159,8 +156,7 @@ router.post('/logout', async (_req, res) => {
 });
 
 // ------ GOOGLE OAUTH (WEB FLOW) ------
-const GOOGLE_WEB_CLIENT_ID =
-  process.env.GOOGLE_CLIENT_ID_WEB || process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_WEB_CLIENT_ID = process.env.GOOGLE_CLIENT_ID_WEB || process.env.GOOGLE_CLIENT_ID;
 
 const oauth2ClientWeb = new google.auth.OAuth2(
   GOOGLE_WEB_CLIENT_ID,
@@ -169,13 +165,17 @@ const oauth2ClientWeb = new google.auth.OAuth2(
 );
 
 router.get('/google', (req, res) => {
-  const url = oauth2ClientWeb.generateAuthUrl({
-    redirect_uri: process.env.GOOGLE_CALLBACK_URI,
-    access_type: 'offline',
-    prompt: 'consent',
-    scope: ['openid', 'email', 'profile'],
-  });
-  res.redirect(url);
+  try {
+    const url = oauth2ClientWeb.generateAuthUrl({
+      access_type: 'offline',
+      prompt: 'consent',
+      scope: ['openid', 'email', 'profile'],
+    });
+    res.redirect(url);
+  } catch (err) {
+    console.error('GET /api/auth/google error:', err);
+    return res.status(500).send('Unable to start Google login');
+  }
 });
 
 router.get('/google/callback', async (req, res) => {
@@ -207,11 +207,9 @@ router.get('/google/callback', async (req, res) => {
     const token = signToken(user);
     setAuthCookie(res, token, true);
 
-    // แก้ไข: แนบ token ไปใน URL fragment เพื่อให้ Frontend (React) ดึงไปเก็บได้
     const frag = `token=${encodeURIComponent(token)}&role=${encodeURIComponent(user.role || 'user')}`;
 
     if (!user.username) {
-      // React Router path (ไม่มี .html)
       return res.redirect(`${process.env.FRONTEND_URL}/form?email=${encodeURIComponent(email)}#${frag}`);
     }
 
@@ -237,7 +235,6 @@ router.post('/forgot-password', async (req, res) => {
     const user = await createPasswordResetToken(email, rawToken, expiresAt);
 
     if (user) {
-      // React Router path
       const link = `${process.env.FRONTEND_URL}/reset?token=${rawToken}`;
       await sendEmail({
         to: email,
@@ -312,7 +309,6 @@ router.post('/google-mobile', async (req, res) => {
     const token = signToken(user);
     setAuthCookie(res, token, true);
 
-    // แก้ไข: ส่งข้อมูลครบชุด
     res.json({
       token,
       user: {
@@ -331,9 +327,7 @@ router.post('/google-mobile', async (req, res) => {
 });
 
 // ------ STATUS CHECK ------
-// ใช้ endpoint /status ให้เหมือน Docker
 router.get('/status', (req, res) => {
-  // แก้ไข: ตรวจสอบทั้ง Cookie และ Header Authorization (Bearer)
   let token = req.cookies?.token;
   
   if (!token && req.headers.authorization) {
