@@ -29,6 +29,9 @@ jobs:
         working-directory: ./backend
         run: npm install
 
+      - name: Run tests
+        run: npm test
+        working-directory: backend
       # ❌ ลบขั้นตอน Initialize Database (psql) ออกไปได้เลย ไม่ต้องใช้แล้ว
 
       # 4. สั่งรันคำสั่ง npm run test 
