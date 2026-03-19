@@ -37,11 +37,12 @@
     "supertest": "^7.2.2"
   },
   "jest": {
-  "moduleNameMapper": {
-    "^uuid$": "uuid"
-  },
-  "transformIgnorePatterns": [
-    "/node_modules/(?!uuid)/"
-  ]
-}
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^uuid$": "<rootDir>/node_modules/uuid/dist/index.js"
+    },
+    "transformIgnorePatterns": [
+      "/node_modules/(?!uuid)/"
+    ]
+  }
 }
