@@ -58,7 +58,7 @@ describe('Comprehensive System Integration Tests', () => {
     });
   });
 
-  // 👤 หมวดที่ 2: User Profile
+  // 👤 หมวดที่ 2: User Profile Management
   describe('2. User Profile Management', () => {
     
     test('USR-02: Get own profile', async () => {
@@ -93,14 +93,19 @@ describe('Comprehensive System Integration Tests', () => {
       // สร้าง Admin และดึง Token
       await request(app).post('/api/auth/register').send({ email: testAdmin.email });
       await request(app).post('/api/auth/verify-code').send({ email: testAdmin.email, code: '123' });
-      const res = await request(app).post('/api/auth/complete-profile').send({
+      await request(app).post('/api/auth/complete-profile').send({
         email: testAdmin.email, username: testAdmin.username, password: testAdmin.password
       });
-      adminToken = res.body.token;
       
       // Manual set role in mock db to admin
       const adminInDb = mockDb.users.find(u => u.email === testAdmin.email);
       if (adminInDb) adminInDb.role = 'admin';
+
+      // ✅ Re-login หลังจากเปลี่ยน Role ในฐานข้อมูล เพื่อให้ได้ JWT Token ของ Admin ที่แท้จริง
+      const loginRes = await request(app)
+        .post('/api/auth/login')
+        .send({ email: testAdmin.email, password: testAdmin.password });
+      adminToken = loginRes.body.token;
     });
 
     test('ADM-02: Admin list all users', async () => {
@@ -130,7 +135,7 @@ describe('Comprehensive System Integration Tests', () => {
     });
   });
 
-  // 📦 หมวดที่ 5: System & Download
+  // 📦 หมวดที่ 5: System & Downloads
   describe('5. System & Downloads', () => {
     
     test('SYS-01: Health check', async () => {

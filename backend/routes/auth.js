@@ -61,7 +61,8 @@ router.post('/register', async (req, res) => {
       html: `<p>Your code is <b>${code}</b>. It expires in 10 minutes.</p>`,
     });
 
-    res.status(201).json({ ok: true });
+    // ✅ เพิ่ม emailSent: true ตามที่เทสต์ต้องการ
+    res.status(201).json({ ok: true, emailSent: true });
   } catch (e) {
     console.error('register error', e);
     res.status(500).json({ error: 'Internal error' });

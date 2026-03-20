@@ -10,27 +10,17 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 
-// ✅ loader กัน ESM/CJS export mismatch (แก้ error handler must be a function)
+// ✅ loader กัน ESM/CJS export mismatch
 function loadRouter(relPath) {
   const mod = require(relPath);
-
-  // case1: module.exports = router (router เป็น function)
   if (typeof mod === 'function') return mod;
-
-  // case2: export default router (require จะได้ { default: fn })
   if (mod && typeof mod.default === 'function') return mod.default;
-
-  // case3: exports.router = router (require จะได้ { router: fn })
   if (mod && typeof mod.router === 'function') return mod.router;
-
-  // case4: exports = { ... } แต่มี member เป็น function router
   if (mod && typeof mod === 'object') {
     for (const k of Object.keys(mod)) {
       if (typeof mod[k] === 'function') return mod[k];
     }
   }
-
-  // ถ้าถึงตรงนี้ แปลว่า export ผิดจริง
   const keys = mod && typeof mod === 'object' ? Object.keys(mod) : [];
   throw new Error(
     `Route module "${relPath}" does not export an Express router function. ` +
@@ -118,8 +108,8 @@ app.get('/', (_req, res) => {
 // 7) Favicon Handler
 app.get('/favicon.ico', (_req, res) => res.status(204).end());
 
-// 8) Health Check
-app.get('/health', (_req, res) => res.json({ ok: true }));
+// 8) Health Check (แก้ไขให้เป็น /healthz ตรงตามที่เทสต์ต้องการ)
+app.get('/healthz', (_req, res) => res.json({ ok: true }));
 
 // 9) 404 Not Found
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
@@ -131,7 +121,6 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal error' });
 });
 
-// ✅ แก้ไข: เช็คไม่ให้ start server ทันทีเมื่อทำการรันเทสต์
 if (process.env.NODE_ENV !== 'test') {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
@@ -139,5 +128,4 @@ if (process.env.NODE_ENV !== 'test') {
   });
 }
 
-// ✅ แก้ไข: ต้อง export app เพื่อให้ Jest และ Supertest สามารถเรียกไปจำลองเซิร์ฟเวอร์ได้
 module.exports = app;
