@@ -131,7 +131,13 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal error' });
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Backend running on port ${PORT}`);
-});
+// ✅ แก้ไข: เช็คไม่ให้ start server ทันทีเมื่อทำการรันเทสต์
+if (process.env.NODE_ENV !== 'test') {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`Backend running on port ${PORT}`);
+  });
+}
+
+// ✅ แก้ไข: ต้อง export app เพื่อให้ Jest และ Supertest สามารถเรียกไปจำลองเซิร์ฟเวอร์ได้
+module.exports = app;
