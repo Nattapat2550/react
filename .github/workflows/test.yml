@@ -72,13 +72,18 @@ jobs:
 
       - name: 🚀 Start Backend Server
         working-directory: ./backend
-        run: node server.js & # ใส่ & ไว้ท้ายคำสั่งเพื่อให้รันใน Background
+        run: node server.js &
         env:
           MONGO_URI: mongodb://127.0.0.1:27017/test_db
           JWT_SECRET: github_actions_secret_key_12345
           PORT: 5000
+          # 🌟 เผื่อ Backend ฝั่งคุณมีการเช็ค CORS origin
+          FRONTEND_URL: http://localhost:3000 
 
-      # 🌟 เตรียมและรันฝั่ง Frontend 
+      - name: ⏳ Wait for Backend to be ready
+        # 🌟 บังคับให้รอจนกว่า Backend พอร์ต 5000 จะเปิดเสร็จ ไม่งั้น Frontend จะ API พังตั้งแต่เสี้ยววิแรก
+        run: npx wait-on tcp:5000 
+
       - name: 📦 Install Frontend Dependencies
         working-directory: ./frontend
         run: npm install

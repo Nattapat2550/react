@@ -9,7 +9,8 @@ export default defineConfig({
   reporter: 'html',
   
   use: {
-    baseURL: 'http://127.0.0.1:4173', // 🌟 Preview ของ Vite มักจะรันที่พอร์ต 4173
+    // 🌟 กลับไปใช้ Port เดียวกับที่รัน Dev โลคอล (3000)
+    baseURL: 'http://localhost:3000', 
     trace: 'on-first-retry',
   },
 
@@ -21,12 +22,10 @@ export default defineConfig({
   ],
 
   webServer: {
-    // 🌟 1. สั่งให้ Build ก่อน แล้วค่อยรัน Preview (จะเปิดเว็บได้เร็วกว่า dev มาก)
-    command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 4173',
-    url: 'http://127.0.0.1:4173',
+    // 🌟 รันแบบ dev เหมือนในเครื่องตัวเอง ลดปัญหาหน้าเว็บพังเพราะ Preview/Build
+    command: 'npm run dev',
+    url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
-    timeout: 60 * 1000, // 🌟 2. ลดเวลารอลงเหลือ 1 นาทีพอ ถ้าไม่ขึ้นแสดงว่ามีปัญหาแล้ว
-    stdout: 'pipe',
-    stderr: 'pipe',
+    timeout: 120 * 1000, // เผื่อเวลาให้ Vite Start
   },
 });
