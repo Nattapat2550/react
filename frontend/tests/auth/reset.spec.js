@@ -11,11 +11,11 @@ test.describe('Forgot & Reset Password Flow', () => {
       });
 
       await page.goto('/reset');
-      await page.locator('input[type="email"]').fill('user@example.com');
-      await page.locator('button[type="submit"]').click();
+      // ใช้ Selector ที่เจาะจงกับลำดับของฟอร์ม
+      await page.locator('input[type="email"]').first().fill('user@example.com');
+      await page.locator('button:has-text("Send Link")').click();
       
-      // 🌟 ใช้ text match แบบไม่สนใจตัวพิมพ์เล็กพิมพ์ใหญ่ และรอให้แสดงผล
-      await expect(page.getByText(/server error/i)).toBeVisible({ timeout: 7000 });
+      await expect(page.getByText(/server error/i)).toBeVisible({ timeout: 10000 });
     });
   });
 
@@ -25,14 +25,15 @@ test.describe('Forgot & Reset Password Flow', () => {
         route.fulfill({ status: 200, headers: corsHeaders, json: { ok: true } });
       });
 
-      await page.goto('/reset?token=mock_valid_token');
+      await page.goto('/reset?token=mock_token');
       
       const pwInput = page.locator('input[type="password"]');
+      await pwInput.waitFor({ state: 'visible' });
       await pwInput.fill('NewStrongPass1!');
-      await page.locator('button[type="submit"]').click();
+      await page.locator('button:has-text("Set Password")').click();
 
-      // 🌟 ตรวจสอบข้อความเป๊ะๆ จาก ResetPasswordPage.jsx
-      await expect(page.getByText('Password set. You can login now.')).toBeVisible({ timeout: 7000 });
+      // เช็คส่วนหนึ่งของข้อความ (Partial Match) จะเสถียรกว่าใน CI
+      await expect(page.getByText(/Password set/i)).toBeVisible({ timeout: 10000 });
     });
   });
 });

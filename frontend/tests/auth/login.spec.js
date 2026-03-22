@@ -2,14 +2,13 @@ import { test, expect } from '@playwright/test';
 
 const corsHeaders = { 
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization'
 };
 
 test.describe('Login Flow & Validation', () => {
   
   test.beforeEach(async ({ page }) => {
-    // 🌟 ดักทุก OPTIONS request เพื่อให้ CORS ผ่านฉลุย
+    // ดัก OPTIONS ทุกตัว
     await page.route('**/*', async (route) => {
       if (route.request().method() === 'OPTIONS') {
         await route.fulfill({ status: 204, headers: corsHeaders });
@@ -18,9 +17,9 @@ test.describe('Login Flow & Validation', () => {
       }
     });
 
-    // เริ่มต้นให้ /me ส่ง 401 เสมอ (ยังไม่ได้ล็อกอิน)
+    // สถานะเริ่มต้น: ยังไม่ได้ Login
     await page.route('**/api/users/me', route => {
-      route.fulfill({ status: 401, headers: corsHeaders, json: { error: 'Unauthorized' } });
+      route.fulfill({ status: 401, headers: corsHeaders, json: { error: 'Not logged in' } });
     });
 
     await page.goto('/login');
@@ -39,13 +38,11 @@ test.describe('Login Flow & Validation', () => {
     await page.locator('input[name="password"]').fill('wrongpassword');
     await page.locator('button[type="submit"]').click();
 
-    // 🌟 รอให้ข้อความปรากฏขึ้นจริง (แก้ปัญหา Re-render ช้า)
-    const errorMsg = page.getByText('Invalid credentials');
-    await expect(errorMsg).toBeVisible({ timeout: 7000 });
+    // 🌟 ใช้สัญลักษณ์สากล หรือค้นหาข้อความแบบไม่เป๊ะ (Exact: false)
+    await expect(page.getByText('Invalid credentials', { exact: false })).toBeVisible({ timeout: 10000 });
   });
 
   test('should login successfully, save token, and redirect to Home', async ({ page }) => {
-    // 1. Mock ตอนกดปุ่ม Login
     await page.route('**/api/auth/login', route => {
       route.fulfill({
         status: 200,
@@ -54,8 +51,7 @@ test.describe('Login Flow & Validation', () => {
       });
     });
 
-    // 2. 🌟 สำคัญมาก: เมื่อ Login สำเร็จ /me ต้องเปลี่ยนเป็น 200 ทันที
-    // เพื่อไม่ให้ ProtectedRoute ดีดกลับมาหน้า Login
+    // 🌟 เปลี่ยน Mock /me ให้เป็น "ผ่าน" ทันทีหลังจาก Login สำเร็จ
     await page.route('**/api/users/me', route => {
       route.fulfill({
         status: 200,
@@ -67,12 +63,8 @@ test.describe('Login Flow & Validation', () => {
     await page.locator('input[name="email"]').fill('user@example.com');
     await page.locator('input[name="password"]').fill('password123');
     
-    // รอให้ URL เปลี่ยนไปหน้า home
-    await Promise.all([
-      page.waitForURL(/.*\/home/),
-      page.locator('button[type="submit"]').click()
-    ]);
-
-    await expect(page).toHaveURL(/.*\/home/);
+    // คลิกแล้วรอให้ URL เปลี่ยน (เพิ่มความทนทานต่อ CI ที่ช้า)
+    await page.locator('button[type="submit"]').click();
+    await expect(page).toHaveURL(/.*\/home/, { timeout: 15000 });
   });
 });

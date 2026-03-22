@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-
+const corsHeaders = { 'Access-Control-Allow-Origin': '*' };
 test.describe('Protected Routes & Role Authorization', () => {
   
   test('should redirect unauthenticated users from /admin to /login', async ({ page }) => {
@@ -37,7 +37,8 @@ test.describe('Protected Routes & Role Authorization', () => {
     await page.route('**/api/users/me', route => {
       route.fulfill({
         status: 200,
-        json: { id: 2, name: 'Normal User', role: 'user' } 
+        headers: corsHeaders,
+        json: { id: 2, role: 'user' } 
       });
     });
 
