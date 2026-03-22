@@ -1,47 +1,86 @@
-name: Backend API Tests
+name: Full Stack CI/CD Pipeline
 
-# จะทำงานเมื่อมีการ Push โค้ดขึ้น branch main หรือมีการเปิด Pull Request
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [ main, master ]
 
 jobs:
-  test:
+  # ==========================================
+  # Job 1: ทดสอบ Backend (Jest + MongoDB)
+  # ==========================================
+  backend-tests:
+    name: Backend API Tests
     runs-on: ubuntu-latest
-
-    # ❌ ลบ services: postgres ออกไปได้เลย เพราะเรา Mock DB ไว้ใน testHelper.js แล้ว
+    
+    # จำลอง Database สำหรับ Integration Test
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
 
     steps:
-      # 1. ดึงโค้ดล่าสุดของคุณจาก GitHub
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
 
-      # 2. ติดตั้ง Node.js เวอร์ชัน 18 (ตาม package.json ของคุณ)
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: './backend/package-lock.json'
 
-      # 3. ติดตั้ง Dependencies ในโฟลเดอร์ backend
-      - name: Install dependencies
+      - name: 📦 Install Backend Dependencies
         working-directory: ./backend
         run: npm install
 
-      - name: Run tests
-        run: npm test
-        working-directory: backend
-      # ❌ ลบขั้นตอน Initialize Database (psql) ออกไปได้เลย ไม่ต้องใช้แล้ว
-
-      # 4. สั่งรันคำสั่ง npm run test 
-      - name: Run Jest Tests
+      - name: 🧪 Run Backend Tests (Jest)
         working-directory: ./backend
+        run: npm test
         env:
-          NODE_ENV: test
+          # ส่งตัวแปร Environment ให้ Jest ตอนเทสต์
+          MONGO_URI: mongodb://127.0.0.1:27017/test_db
+          JWT_SECRET: github_actions_secret_key_12345
           PORT: 5000
-          # ใส่เป็นค่า Dummy ไว้ได้เลย เพราะระบบจะถูกดักจับด้วย Mock fetch แทน
-          PURE_API_BASE_URL: https://mock-api.local
-          PURE_API_KEY: mock-key-123
-          JWT_SECRET: super_secret_test_key
-        run: npm run test
+
+  # ==========================================
+  # Job 2: ทดสอบ Frontend (Playwright E2E)
+  # ==========================================
+  frontend-tests:
+    name: Frontend E2E Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: './frontend/package-lock.json'
+
+      - name: 📦 Install Frontend Dependencies
+        working-directory: ./frontend
+        run: npm install
+
+      - name: 🌐 Install Playwright Browsers
+        working-directory: ./frontend
+        # ติดตั้งเบราว์เซอร์ที่จำเป็น (Chromium, Firefox, WebKit) พร้อม Dependencies ของ OS
+        run: npx playwright install --with-deps
+
+      - name: 🎭 Run Playwright E2E Tests
+        working-directory: ./frontend
+        run: npx playwright test
+
+      # เก็บ Report ของ Playwright ไว้ดูใน GitHub กรณีที่เทสต์พัง (หรือผ่าน)
+      - name: 📊 Upload Playwright Report
+        uses: actions/upload-artifact@v4
+        if: always() # บังคับให้อัปโหลดแม้ว่าเทสต์จะ fail ก็ตาม
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
