@@ -18,8 +18,9 @@ describe('👤 User Profile API Tests', () => {
       .set('Authorization', `Bearer ${userToken}`);
       
     expect(res.statusCode).toEqual(200);
-    expect(res.body.user).toBeDefined();
-    expect(res.body.user.role).toEqual('user');
+    // ✅ แก้ไข: API คืนค่าออกมาเป็น Object โดยตรง ไม่ได้ครอบด้วย { user: {...} }
+    expect(res.body.email).toBeDefined();
+    expect(res.body.role).toEqual('user');
   });
 
   it('✏️ PUT /api/users/me - อัปเดตชื่อผู้ใช้ (Username) สำเร็จ', async () => {
@@ -29,7 +30,8 @@ describe('👤 User Profile API Tests', () => {
       .send({ username: 'UpdatedNameUser' });
       
     expect(res.statusCode).toEqual(200);
-    expect(res.body.ok).toBe(true);
+    // ✅ แก้ไข: API คืนข้อมูล User ใหม่กลับมา ไม่ได้คืน { ok: true }
+    expect(res.body.username).toEqual('UpdatedNameUser');
   });
 
   it('🚫 POST /api/users/me/avatar - บล็อกการอัปโหลดไฟล์ที่ไม่ใช่รูปภาพ', async () => {
@@ -46,7 +48,7 @@ describe('👤 User Profile API Tests', () => {
       .delete('/api/users/me')
       .set('Authorization', `Bearer ${userToken}`);
       
-    expect(res.statusCode).toEqual(200);
-    expect(res.body.ok).toBe(true);
+    // ✅ แก้ไข: API ตอบกลับเป็น 204 No Content
+    expect(res.statusCode).toEqual(204);
   });
 });

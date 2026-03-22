@@ -19,7 +19,8 @@ describe('🛡️ Admin & CMS API Tests', () => {
       .set('Authorization', `Bearer ${adminToken}`);
       
     expect(res.statusCode).toEqual(200);
-    expect(Array.isArray(res.body.users)).toBe(true);
+    // ✅ แก้ไข: ข้อมูลที่ได้กลับมาเป็น Array ตรงๆ ไม่ได้ครอบด้วย res.body.users
+    expect(Array.isArray(res.body)).toBe(true);
   });
 
   it('🛠️ PUT /api/admin/users/:id - แอดมินปรับสิทธิ์ให้คนอื่นเป็นแอดมินได้', async () => {
@@ -32,13 +33,17 @@ describe('🛡️ Admin & CMS API Tests', () => {
   });
 
   it('🖼️ POST /api/admin/carousel - แอดมินสร้างภาพสไลด์แบนเนอร์ใหม่ได้', async () => {
+    const mockImageBuffer = Buffer.from('mock image content');
+    
+    // ✅ แก้ไข: API บังคับแนบไฟล์ (multer) ต้องส่งแบบ multipart/form-data
     const res = await request(app)
       .post('/api/admin/carousel')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ title: 'New Banner', image_url: 'http://example.com/img.jpg' });
+      .field('title', 'New Banner')
+      .attach('image', mockImageBuffer, 'banner.jpg');
       
     expect(res.statusCode).toEqual(201);
-    expect(res.body.data.title).toEqual('New Banner');
+    expect(res.body.title).toEqual('New Banner');
   });
 
   it('📝 PUT /api/homepage - แอดมินแก้ไขข้อความส่วน Hero ได้', async () => {
