@@ -28,11 +28,7 @@ jobs:
       - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
         with:
-          # 🌟 แก้ไข: อัปเกรด Node.js เป็นเวอร์ชัน 20
           node-version: '20'
-          # ปิด cache ไว้ก่อนชั่วคราว
-          # cache: 'npm'
-          # cache-dependency-path: './backend/package-lock.json'
 
       - name: 📦 Install Backend Dependencies
         working-directory: ./backend
@@ -42,7 +38,6 @@ jobs:
         working-directory: ./backend
         run: npm test
         env:
-          # ส่งตัวแปร Environment ให้ Jest ตอนเทสต์
           MONGO_URI: mongodb://127.0.0.1:27017/test_db
           JWT_SECRET: github_actions_secret_key_12345
           PORT: 5000
@@ -54,6 +49,13 @@ jobs:
     name: Frontend E2E Tests
     runs-on: ubuntu-latest
 
+    # 🌟 เพิ่ม MongoDB Service สำหรับให้ Backend รันตอนเทสต์ Frontend
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
@@ -61,19 +63,28 @@ jobs:
       - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
         with:
-          # 🌟 แก้ไข: อัปเกรด Node.js เป็นเวอร์ชัน 20
           node-version: '20'
-          # ปิด cache ไว้ก่อนชั่วคราว
-          # cache: 'npm'
-          # cache-dependency-path: './frontend/package-lock.json'
 
+      # 🌟 ติดตั้งและรัน Backend Server ใน Background เพื่อให้ Frontend มี API เรียกใช้
+      - name: 📦 Install Backend Dependencies
+        working-directory: ./backend
+        run: npm install
+
+      - name: 🚀 Start Backend Server
+        working-directory: ./backend
+        run: node server.js & # ใส่ & ไว้ท้ายคำสั่งเพื่อให้รันใน Background
+        env:
+          MONGO_URI: mongodb://127.0.0.1:27017/test_db
+          JWT_SECRET: github_actions_secret_key_12345
+          PORT: 5000
+
+      # 🌟 เตรียมและรันฝั่ง Frontend 
       - name: 📦 Install Frontend Dependencies
         working-directory: ./frontend
         run: npm install
 
       - name: 🌐 Install Playwright Browsers
         working-directory: ./frontend
-        # ติดตั้งเบราว์เซอร์ที่จำเป็น (Chromium, Firefox, WebKit) พร้อม Dependencies ของ OS
         run: npx playwright install --with-deps
 
       - name: 🎭 Run Playwright E2E Tests
@@ -83,7 +94,7 @@ jobs:
       # เก็บ Report ของ Playwright ไว้ดูใน GitHub กรณีที่เทสต์พัง (หรือผ่าน)
       - name: 📊 Upload Playwright Report
         uses: actions/upload-artifact@v4
-        if: always() # บังคับให้อัปโหลดแม้ว่าเทสต์จะ fail ก็ตาม
+        if: always()
         with:
           name: playwright-report
           path: frontend/playwright-report/
