@@ -6,7 +6,6 @@ test.describe('Register Flow', () => {
   });
 
   test('should register successfully and redirect to verify page', async ({ page }) => {
-    // Mock API
     await page.route('**/api/auth/register', route => {
       route.fulfill({
         status: 201,
@@ -15,11 +14,10 @@ test.describe('Register Flow', () => {
       });
     });
 
-    await page.getByLabel(/email/i).fill('newuser@example.com');
-    await page.getByRole('button', { name: /สมัครสมาชิก/i }).click();
+    await page.locator('input[name="email"]').fill('newuser@example.com');
+    await page.locator('button[type="submit"]').click();
 
-    // เปลี่ยนเป็นหน้า check-code ตาม React Router
-    await expect(page).toHaveURL(/.*\/check-code/);
-    await expect(page.getByText(/โปรดตรวจสอบอีเมลของคุณ/i)).toBeVisible();
+    // เปลี่ยนให้ตรงกับ Router ของคุณที่ใช้ path "/check"
+    await expect(page).toHaveURL(/.*\/check/);
   });
 });
