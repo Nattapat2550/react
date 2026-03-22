@@ -9,7 +9,7 @@ export default defineConfig({
   reporter: 'html',
   
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: 'http://127.0.0.1:4173', // 🌟 Preview ของ Vite มักจะรันที่พอร์ต 4173
     trace: 'on-first-retry',
   },
 
@@ -21,12 +21,11 @@ export default defineConfig({
   ],
 
   webServer: {
-    /* 🌟 1. บังคับ Vite ให้รันที่ 127.0.0.1:5173 เป๊ะๆ และห้ามเปลี่ยนพอร์ตถ้าชน */
-    command: 'npm run dev -- --host 127.0.0.1 --port 5173 --strictPort',
-    url: 'http://127.0.0.1:5173',
+    // 🌟 1. สั่งให้ Build ก่อน แล้วค่อยรัน Preview (จะเปิดเว็บได้เร็วกว่า dev มาก)
+    command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 4173',
+    url: 'http://127.0.0.1:4173',
     reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
-    /* 🌟 2. ดึง Log ของ WebServer ออกมาแสดงใน GitHub Actions */
+    timeout: 60 * 1000, // 🌟 2. ลดเวลารอลงเหลือ 1 นาทีพอ ถ้าไม่ขึ้นแสดงว่ามีปัญหาแล้ว
     stdout: 'pipe',
     stderr: 'pipe',
   },
