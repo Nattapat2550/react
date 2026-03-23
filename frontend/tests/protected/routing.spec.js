@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test';
-const corsHeaders = { 'Access-Control-Allow-Origin': '*' };
+const corsHeaders = { 
+  'Access-Control-Allow-Origin': 'http://localhost:3000',
+  'Access-Control-Allow-Credentials': 'true',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization' 
+};
 test.describe('Protected Routes & Role Authorization', () => {
   
   test('should redirect unauthenticated users from /admin to /login', async ({ page }) => {
