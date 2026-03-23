@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-// 🌟 1. ใช้ Origin ให้ตรงกับ URL ที่รันเทสต์ และเปิด Allow-Credentials
+// 🌟 1. อนุญาต Origin ปัจจุบัน (ห้ามใช้ '*') และเปิด Allow-Credentials
 const corsHeaders = { 
   'Access-Control-Allow-Origin': 'http://localhost:3000',
   'Access-Control-Allow-Credentials': 'true',
@@ -10,9 +10,8 @@ const corsHeaders = {
 test.describe('Login Flow & Validation', () => {
   
   test.beforeEach(async ({ page }) => {
-    // สถานะเริ่มต้น: ยังไม่ได้ Login
-    await page.route('**/api/users/me', route => {
-      // ดัก OPTIONS ให้ผ่านเสมอ
+    // กำหนดให้เริ่มต้นมายังไม่ได้ล็อกอิน (401) เพื่อให้ GuestRoute ยอมให้อยู่หน้า /login
+    await page.route('**/api/users/me', async route => {
       if (route.request().method() === 'OPTIONS') {
         return route.fulfill({ status: 204, headers: corsHeaders });
       }
@@ -20,17 +19,19 @@ test.describe('Login Flow & Validation', () => {
     });
 
     await page.goto('/login');
+
+    // 🌟 2. รอให้ช่องกรอก Email ปรากฏขึ้นมาก่อน เพื่อการันตีว่าเราอยู่หน้า login จริงๆ
+    const emailInput = page.locator('input[name="email"]');
+    await expect(emailInput).toBeVisible({ timeout: 10000 });
   });
 
   test('should show error message on invalid credentials', async ({ page }) => {
-    // 🌟 2. ดัก OPTIONS ภายใน Test นี้ด้วย เพื่อไม่ให้มันเผลอตอบ 401 ตอนพรีไฟลท์
+    // จำลองการล็อกอินผิดพลาด (401)
     await page.route('**/api/auth/login', async route => {
       if (route.request().method() === 'OPTIONS') {
-        await route.fulfill({ status: 204, headers: corsHeaders });
-        return;
+        return route.fulfill({ status: 204, headers: corsHeaders });
       }
-      
-      await route.fulfill({
+      return route.fulfill({
         status: 401,
         headers: corsHeaders,
         json: { error: 'Invalid credentials' }
@@ -46,38 +47,39 @@ test.describe('Login Flow & Validation', () => {
   });
 
   test('should login successfully, save token, and redirect to Home', async ({ page }) => {
+    // จำลองการล็อกอินสำเร็จ (200)
     await page.route('**/api/auth/login', async route => {
       if (route.request().method() === 'OPTIONS') {
-        await route.fulfill({ status: 204, headers: corsHeaders });
-        return;
+        return route.fulfill({ status: 204, headers: corsHeaders });
       }
-      
-      await route.fulfill({
+      return route.fulfill({
         status: 200,
         headers: corsHeaders,
         json: { token: 'fake-jwt-token', user: { id: 1, role: 'user' } }
       });
     });
 
-    // 🌟 เปลี่ยน Mock /me ให้เป็น "ผ่าน" ทันทีหลังจาก Login สำเร็จ
+    // 🌟 3. กรอกข้อมูลให้เสร็จก่อน
+    await page.locator('input[name="email"]').fill('user@example.com');
+    await page.locator('input[name="password"]').fill('password123');
+
+    // 🌟 4. ค่อยมาเปลี่ยน Mock ของ /me ให้เป็น 200 ก่อนจะกดปุ่ม Submit 
+    // เพื่อให้รอบถัดไปที่แอปเช็คสถานะ มันจะมองเห็นว่าเราล็อกอินแล้ว
     await page.route('**/api/users/me', async route => {
       if (route.request().method() === 'OPTIONS') {
-        await route.fulfill({ status: 204, headers: corsHeaders });
-        return;
+        return route.fulfill({ status: 204, headers: corsHeaders });
       }
-      
-      await route.fulfill({
+      return route.fulfill({
         status: 200,
         headers: corsHeaders,
         json: { id: 1, username: 'Test User', role: 'user' } 
       });
     });
-
-    await page.locator('input[name="email"]').fill('user@example.com');
-    await page.locator('input[name="password"]').fill('password123');
     
-    // คลิกแล้วรอให้ URL เปลี่ยน (เพิ่มความทนทานต่อ CI ที่ช้า)
+    // กดล็อกอิน
     await page.locator('button[type="submit"]').click();
+    
+    // ยืนยันว่า Redirect ไปหน้า /home
     await expect(page).toHaveURL(/.*\/home/, { timeout: 15000 });
   });
 });
