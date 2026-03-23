@@ -27,8 +27,15 @@ test.describe('Login Flow & Validation', () => {
   });
 
   test('should show error message on invalid credentials', async ({ page }) => {
-    await page.route('**/api/auth/login', route => {
-      route.fulfill({
+    await page.route('**/api/auth/login', async route => {
+      // 🌟 ดัก OPTIONS ให้ผ่าน CORS เสมอ
+      if (route.request().method() === 'OPTIONS') {
+        await route.fulfill({ status: 204, headers: corsHeaders });
+        return;
+      }
+      
+      // 🌟 ถ้าเป็น POST ปกติ ค่อยตอบ 401
+      await route.fulfill({
         status: 401,
         headers: corsHeaders,
         json: { error: 'Invalid credentials' }
@@ -39,7 +46,7 @@ test.describe('Login Flow & Validation', () => {
     await page.locator('input[name="password"]').fill('wrongpassword');
     await page.locator('button[type="submit"]').click();
 
-    // 🌟 ใช้สัญลักษณ์สากล หรือค้นหาข้อความแบบไม่เป๊ะ (Exact: false)
+    // เช็คข้อความ Invalid credentials
     await expect(page.getByText('Invalid credentials', { exact: false })).toBeVisible({ timeout: 10000 });
   });
 
