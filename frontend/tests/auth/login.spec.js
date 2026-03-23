@@ -1,28 +1,29 @@
 import { test, expect } from '@playwright/test';
 
-// 🌟 Helper Function สำหรับ Mock API ให้ผ่าน CORS แน่นอน 100% แบบ Dynamic
-const fulfillWithCors = async (route, status, responseData) => {
-  // ดึงค่า Origin จาก Request จริงๆ ที่เบราว์เซอร์ส่งมา (แก้ปัญหา 127.0.0.1 vs localhost)
-  const origin = route.request().headers().origin || 'http://localhost:3000';
-  
+// 🌟 Helper Function สำหรับ Mock API แบบข้าม CORS 100%
+const fulfillWithCors = async (route, status, data) => {
+  const reqHeaders = route.request().headers();
+  // ดึง origin จาก request ถ้าไม่มีให้ใช้ wildcard (เพื่อเลี่ยง CORS)
+  const origin = reqHeaders.origin || '*';
+
   const headers = {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Credentials': 'true',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Content-Type': 'application/json', // ✅ บังคับให้เป็น JSON เสมอ ป้องกัน Axios งง
+    'Access-Control-Allow-Methods': '*',
+    'Access-Control-Allow-Headers': '*',
   };
 
-  // ดัก Preflight (OPTIONS) ให้ตอบ 204 เสมอ
+  // ดัก Preflight (OPTIONS)
   if (route.request().method() === 'OPTIONS') {
     return route.fulfill({ status: 204, headers });
   }
 
-  // ✅ แปลง object เป็น JSON String แล้วส่งผ่าน body ตรงๆ แทนการใช้ json property
-  return route.fulfill({ 
-    status, 
-    headers, 
-    body: JSON.stringify(responseData) 
+  // ส่งกลับเป็น application/json ผ่าน Playwright options โดยตรง
+  return route.fulfill({
+    status,
+    contentType: 'application/json',
+    headers,
+    body: JSON.stringify(data),
   });
 };
 
@@ -39,14 +40,14 @@ test.describe('Login Flow & Validation', () => {
   });
 
   test('should show error message on invalid credentials', async ({ page }) => {
-    // 3. Mock ให้ตอบ 401 Invalid credentials พร้อมจัดการ CORS อัตโนมัติ
+    // 3. Mock ให้ตอบ 401 Invalid credentials
     await page.route('**/api/auth/login', (route) => fulfillWithCors(route, 401, { error: 'Invalid credentials' }));
 
     await page.locator('input[name="email"]').fill('wrong@example.com');
     await page.locator('input[name="password"]').fill('wrongpassword');
     await page.locator('button[type="submit"]').click();
 
-    // ค้นหาข้อความ Error (ถ้า CORS ผ่าน Axios จะต้องได้คำนี้มาแสดงผล)
+    // 4. ค้นหาข้อความ Error 
     await expect(page.getByText('Invalid credentials', { exact: false })).toBeVisible({ timeout: 10000 });
   });
 
@@ -60,7 +61,7 @@ test.describe('Login Flow & Validation', () => {
     await page.locator('input[name="email"]').fill('user@example.com');
     await page.locator('input[name="password"]').fill('password123');
 
-    // 4. เมื่อคลิก Submit ให้จำลองว่าเราล็อกอินแล้ว (/me ตอบ 200) เพื่อให้ระบบทำการ Redirect
+    // 5. เมื่อคลิก Submit ให้จำลองว่าเราล็อกอินแล้ว (/me ตอบ 200) เพื่อให้ระบบทำการ Redirect
     await page.route('**/api/users/me', (route) => fulfillWithCors(route, 200, {
       id: 1, username: 'Test User', role: 'user'
     }));
