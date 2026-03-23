@@ -10,6 +10,7 @@ const fulfillWithCors = async (route, status, json) => {
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Content-Type': 'application/json', // ✅ เพิ่ม Content-Type เพื่อให้ Axios นำไปแปลงเป็น JSON
   };
 
   // ดัก Preflight (OPTIONS) ให้ตอบ 204 เสมอ
@@ -17,8 +18,12 @@ const fulfillWithCors = async (route, status, json) => {
     return route.fulfill({ status: 204, headers });
   }
 
-  // ส่งข้อมูลจริงกลับไปพร้อม Headers ที่ถูกต้อง
-  return route.fulfill({ status, headers, json });
+  // ✅ ส่งข้อมูลจริงกลับไปพร้อม Headers และแปลง Body ให้อยู่ในรูป JSON String
+  return route.fulfill({ 
+    status, 
+    headers, 
+    body: json ? JSON.stringify(json) : undefined 
+  });
 };
 
 test.describe('Login Flow & Validation', () => {
