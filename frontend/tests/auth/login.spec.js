@@ -52,7 +52,12 @@ test.describe('Login Flow & Validation', () => {
       });
     });
 
-    // 🌟 เปลี่ยน Mock /me ให้เป็น "ผ่าน" ทันทีหลังจาก Login สำเร็จ
+    // 🌟 1. รอให้ช่องกรอก Email โผล่มาก่อน ค่อยทำอย่างอื่น 
+    // (เพื่อยืนยันว่าเราอยู่หน้า /login จริงๆ และ GuestRoute ทำงานจบแล้ว)
+    const emailInput = page.locator('input[name="email"]');
+    await expect(emailInput).toBeVisible({ timeout: 10000 });
+
+    // 🌟 2. ค่อยเปลี่ยน Mock /me ให้เป็น 200 หลังจากโหลดหน้าล็อกอินเสร็จแล้ว
     await page.route('**/api/users/me', route => {
       route.fulfill({
         status: 200,
@@ -61,10 +66,11 @@ test.describe('Login Flow & Validation', () => {
       });
     });
 
-    await page.locator('input[name="email"]').fill('user@example.com');
+    // 3. เริ่มกรอกข้อมูล
+    await emailInput.fill('user@example.com');
     await page.locator('input[name="password"]').fill('password123');
     
-    // คลิกแล้วรอให้ URL เปลี่ยน (เพิ่มความทนทานต่อ CI ที่ช้า)
+    // 4. คลิกแล้วรอให้ URL เปลี่ยน
     await page.locator('button[type="submit"]').click();
     await expect(page).toHaveURL(/.*\/home/, { timeout: 15000 });
   });
