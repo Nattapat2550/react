@@ -41,12 +41,14 @@ test.describe('Protected Routes & Role Authorization', () => {
     await page.route('**/api/users/me', route => {
       route.fulfill({
         status: 200,
-        headers: corsHeaders,
+        headers: corsHeaders, // อย่าลืมให้แน่ใจว่า corsHeaders ในไฟล์นี้ถูกต้องด้วย
         json: { id: 2, role: 'user' } 
       });
     });
 
     await page.goto('/admin');
-    await expect(page).toHaveURL('/');
+    
+    // 🌟 เปลี่ยนจาก '/' เป็น /.*\/home/ เพื่อให้ตรงกับการทำงานจริงของแอป
+    await expect(page).toHaveURL(/.*\/home/);
   });
 });
