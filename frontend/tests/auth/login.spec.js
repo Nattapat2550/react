@@ -1,88 +1,87 @@
 import { test, expect } from '@playwright/test';
 
-// 🌟 Helper Function สำหรับ Mock API ให้ผ่าน CORS อย่างสมบูรณ์แบบ
-const fulfillWithCors = async (route, status, data) => {
-  const request = route.request();
-  const reqHeaders = request.headers();
+// 🌟 ฟังก์ชันจัดการ Mock API + CORS แบบรัดกุมที่สุด (ใช้ async/await เต็มรูปแบบ)
+const mockWithCors = async (route, status, payload) => {
+  const req = route.request();
+  const headers = req.headers();
   
-  // แกะ Origin จาก Header จริงๆ (เผื่อ Vite รันพอร์ตอื่นที่ไม่ใช่ 3000)
-  let origin = reqHeaders.origin || reqHeaders.referer;
+  // ดึง Origin จาก Request แบบชัวร์ๆ (Playwright header keys จะเป็นตัวเล็กทั้งหมด)
+  let origin = headers['origin'] || headers['referer'];
   if (origin) {
-    origin = new URL(origin).origin; // แปลงให้อยู่ในรูป http://localhost:xxxx เสมอ
+    origin = new URL(origin).origin;
   } else {
-    origin = 'http://localhost:3000'; // Fallback
+    origin = '*'; // ถ้าไม่มีจริงๆ ให้ใช้ * ไปก่อน
   }
-  
-  const headers = {
-    'Access-Control-Allow-Origin': origin,
+
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': origin === '*' ? 'http://localhost:5173' : origin,
     'Access-Control-Allow-Credentials': 'true',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Content-Type': 'application/json' // บังคับให้ Axios มองว่าเป็น JSON
+    'Access-Control-Allow-Methods': '*',
+    'Access-Control-Allow-Headers': '*',
   };
 
   // ดัก Preflight (OPTIONS)
-  if (request.method() === 'OPTIONS') {
-    return route.fulfill({ status: 204, headers });
+  if (req.method() === 'OPTIONS') {
+    await route.fulfill({ status: 204, headers: corsHeaders });
+    return;
   }
 
-  // ส่งค่ากลับพร้อม Headers ที่ถูกต้อง
-  return route.fulfill({
+  // ตอบกลับแบบปกติ พร้อมบังคับ Header 
+  await route.fulfill({
     status,
-    headers,
-    body: JSON.stringify(data)
+    contentType: 'application/json',
+    headers: corsHeaders,
+    body: JSON.stringify(payload),
   });
 };
 
 test.describe('Login Flow & Validation', () => {
 
   test.beforeEach(async ({ page }) => {
-    // 1. ใช้ Regex (/.+\/api\/.../) เพื่อดัก Request ได้แม่นยำ 100% ในทุก Base URL
-    await page.route(/.+\/api\/users\/me/, (route) => fulfillWithCors(route, 401, { error: 'Not logged in' }));
+    // ดักการเช็คสถานะล็อกอินตอนเปิดหน้า
+    await page.route('**/api/users/me', async (route) => {
+      await mockWithCors(route, 401, { error: 'Not logged in' });
+    });
     
     await page.goto('/login');
     await expect(page.locator('input[name="email"]')).toBeVisible({ timeout: 10000 });
   });
 
   test('should show error message on invalid credentials', async ({ page }) => {
-    // 2. Mock ให้ตอบ 401 Invalid credentials
-    await page.route(/.+\/api\/auth\/login/, (route) => fulfillWithCors(route, 401, { error: 'Invalid credentials' }));
+    // 1. Mock ให้ API คืนค่า 401 และข้อความที่เราต้องการทดสอบ
+    await page.route('**/api/auth/login', async (route) => {
+      await mockWithCors(route, 401, { error: 'Invalid credentials' });
+    });
 
     await page.locator('input[name="email"]').fill('wrong@example.com');
     await page.locator('input[name="password"]').fill('wrongpassword');
+    await page.locator('button[type="submit"]').click();
 
-    // 3. ⭐️ ใช้ Promise.all เพื่อ "รอ" ให้ Request /login ทำงานจนจบหลังจากคลิก
-    const [response] = await Promise.all([
-      page.waitForResponse(res => res.url().includes('/api/auth/login')),
-      page.locator('button[type="submit"]').click()
-    ]);
-
-    // 4. ค้นหาข้อความ Error บนหน้าจอ
-    await expect(page.getByText('Invalid credentials')).toBeVisible({ timeout: 10000 });
+    // 2. ค้นหาคำว่า Invalid credentials (ใส่ exact: false กันเหนียวเรื่องการเว้นวรรคซ่อนเร้น)
+    await expect(page.getByText('Invalid credentials', { exact: false })).toBeVisible({ timeout: 10000 });
   });
 
   test('should login successfully, save token, and redirect to Home', async ({ page }) => {
-    // Mock การล็อกอินให้สำเร็จ
-    await page.route(/.+\/api\/auth\/login/, (route) => fulfillWithCors(route, 200, {
-      token: 'fake-jwt-token',
-      user: { id: 1, role: 'user' }
-    }));
+    // Mock API /login ให้ผ่าน (200)
+    await page.route('**/api/auth/login', async (route) => {
+      await mockWithCors(route, 200, {
+        token: 'fake-jwt-token',
+        user: { id: 1, role: 'user' }
+      });
+    });
 
-    // Mock ว่าพอล็อกอินเสร็จ /me จะดึงข้อมูลได้แล้ว
-    await page.route(/.+\/api\/users\/me/, (route) => fulfillWithCors(route, 200, {
-      id: 1, username: 'Test User', role: 'user'
-    }));
+    // พอล็อกอินสำเร็จ ระบบจะดึง /me อีกรอบ ให้ตอบ 200 เพื่อให้ผ่าน Auth guard ของ React
+    await page.route('**/api/users/me', async (route) => {
+      await mockWithCors(route, 200, {
+        id: 1, username: 'Test', role: 'user'
+      });
+    });
 
     await page.locator('input[name="email"]').fill('user@example.com');
     await page.locator('input[name="password"]').fill('password123');
+    await page.locator('button[type="submit"]').click();
 
-    // ⭐️ รอให้ Request ตอบกลับมาเรียบร้อยก่อนเสมอ
-    await Promise.all([
-      page.waitForResponse(res => res.url().includes('/api/auth/login')),
-      page.locator('button[type="submit"]').click()
-    ]);
-    
-    // ตรวจสอบว่าเปลี่ยนหน้าไปที่ Home
+    // ยืนยันว่า Redirect ไปหน้า Home จริง
     await expect(page).toHaveURL(/.*\/home/, { timeout: 15000 });
   });
 });
