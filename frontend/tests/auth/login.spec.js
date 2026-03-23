@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 // 🌟 Helper Function สำหรับ Mock API ให้ผ่าน CORS แน่นอน 100% แบบ Dynamic
-const fulfillWithCors = async (route, status, json) => {
+const fulfillWithCors = async (route, status, responseData) => {
   // ดึงค่า Origin จาก Request จริงๆ ที่เบราว์เซอร์ส่งมา (แก้ปัญหา 127.0.0.1 vs localhost)
   const origin = route.request().headers().origin || 'http://localhost:3000';
   
@@ -10,7 +10,7 @@ const fulfillWithCors = async (route, status, json) => {
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Content-Type': 'application/json', // ✅ เพิ่ม Content-Type เพื่อให้ Axios นำไปแปลงเป็น JSON
+    'Content-Type': 'application/json', // ✅ บังคับให้เป็น JSON เสมอ ป้องกัน Axios งง
   };
 
   // ดัก Preflight (OPTIONS) ให้ตอบ 204 เสมอ
@@ -18,11 +18,11 @@ const fulfillWithCors = async (route, status, json) => {
     return route.fulfill({ status: 204, headers });
   }
 
-  // ✅ ส่งข้อมูลจริงกลับไปพร้อม Headers และแปลง Body ให้อยู่ในรูป JSON String
+  // ✅ แปลง object เป็น JSON String แล้วส่งผ่าน body ตรงๆ แทนการใช้ json property
   return route.fulfill({ 
     status, 
     headers, 
-    body: json ? JSON.stringify(json) : undefined 
+    body: JSON.stringify(responseData) 
   });
 };
 
