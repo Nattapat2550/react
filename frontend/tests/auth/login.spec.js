@@ -1,60 +1,30 @@
 import { test, expect } from '@playwright/test';
 
-// 🌟 Helper สำหรับ Mock API และเคลียร์ปัญหาเรื่อง CORS แบบหมดจด
-const mockRoute = async (page, urlPattern, status, responseBody) => {
-  await page.route(urlPattern, async (route) => {
-    const request = route.request();
-    const origin = request.headers().origin || 'http://localhost:3000';
-    
-    const corsHeaders = {
-      'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Credentials': 'true',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    };
-
-    // ดัก OPTIONS ให้ผ่านเสมอ
-    if (request.method() === 'OPTIONS') {
-      return route.fulfill({ status: 204, headers: corsHeaders });
-    }
-
-    return route.fulfill({
-      status,
-      contentType: 'application/json',
-      headers: corsHeaders,
-      body: JSON.stringify(responseBody)
-    });
-  });
-};
-
 test.describe('Login Flow & Validation', () => {
 
   test.beforeEach(async ({ page }) => {
-    // ล้าง Storage ทุกรอบ เพื่อให้สถานะคลีนจริงๆ
+    // 1. ล้างข้อมูลเก่าทั้งหมด ป้องกัน Token ของรอบก่อนหน้าพาหนีไปหน้า /home
     await page.addInitScript(() => {
       localStorage.clear();
       sessionStorage.clear();
+      document.cookie.split(";").forEach((c) => { 
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+      });
     });
-    
-    // จำลองสถานะ "ยังไม่ล็อกอิน"
-    await mockRoute(page, '**/api/users/me', 401, { error: 'Not logged in' });
-    
+
     await page.goto('/login');
     
-    // 🌟 บังคับให้รอจนกว่าโหลด Script ครบ และ React Hydrate เสร็จสมบูรณ์
-    // ป้องกันการกด Submit เร็วเกินไปจนทำให้ฟอร์มทำ Native Reload!
+    // 2. รอให้หน้าเว็บโหลดเสร็จสมบูรณ์จริงๆ ป้องกัน React Hydration ซ้อนทับการกดปุ่ม
     await page.waitForLoadState('networkidle');
     await expect(page.locator('input[name="email"]')).toBeVisible();
   });
 
   test('should show error message on invalid credentials', async ({ page }) => {
-    // 🌟 จำลอง Error 400 (ใช้ 400 ปลอดภัยกว่า 401 ป้องกัน Axios โยนทิ้ง)
-    await mockRoute(page, '**/api/auth/login', 400, { error: 'Invalid credentials' });
-
-    await page.locator('input[name="email"]').fill('wrong_user@example.com');
+    // พิมพ์ข้อมูลผิดๆ ลงไป
+    await page.locator('input[name="email"]').fill('wrong_user_not_exist@example.com');
     await page.locator('input[name="password"]').fill('wrongpassword123');
-    
-    // ดักรอ Request POST ชัวร์ๆ ไม่ให้ Playwright ข้ามสเต็ป
+
+    // ดักรอการตอบกลับจาก Backend ตัวจริง (เราไม่ใช้ Mock แล้ว)
     const responsePromise = page.waitForResponse(res => 
       res.url().includes('/api/auth/login') && res.request().method() === 'POST'
     );
@@ -62,16 +32,13 @@ test.describe('Login Flow & Validation', () => {
     await page.locator('button[type="submit"]').click();
     await responsePromise;
 
-    // 🌟 เล็งเป้าไปที่แท็ก <p> เพื่อความแม่นยำ พร้อมใช้ Regex หลวมๆ
-    const errorMsg = page.locator('p.muted', { hasText: /Invalid credentials|Login failed/i });
-    await expect(errorMsg).toBeVisible({ timeout: 10000 });
+    // ระบบจะแสดงข้อความ 'Invalid credentials' ออกมาแน่นอน เพราะ Backend จะพ่น 401 ออกมาจริงๆ
+    await expect(page.getByText('Invalid credentials')).toBeVisible({ timeout: 10000 });
   });
 
   test('should login successfully, save token, and redirect to Home', async ({ page }) => {
-    // Mock สมมติว่าล็อกอินผ่าน
-    await mockRoute(page, '**/api/auth/login', 200, { token: 'fake-jwt-token', user: { id: 1, role: 'user' } });
-    await mockRoute(page, '**/api/users/me', 200, { id: 1, username: 'TestUser', role: 'user' });
-
+    // ⚠️ ตรงนี้คุณต้องแน่ใจว่าใน Backend Test Environment มีบัญชี "test@example.com" 
+    // และรหัสผ่าน "password123" อยู่จริงๆ นะครับ
     await page.locator('input[name="email"]').fill('test@example.com');
     await page.locator('input[name="password"]').fill('password123');
     
@@ -80,8 +47,13 @@ test.describe('Login Flow & Validation', () => {
     );
     
     await page.locator('button[type="submit"]').click();
-    await responsePromise;
+    
+    // รอจนกว่า Backend จะตอบกลับว่า Login สำเร็จ (200 OK)
+    const response = await responsePromise;
+    expect(response.status()).toBe(200);
 
+    // เช็คว่าระบบพากลับไปหน้า /home 
     await expect(page).toHaveURL(/.*\/home/, { timeout: 15000 });
   });
+
 });
